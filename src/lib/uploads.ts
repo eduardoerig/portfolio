@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { mkdir, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 
+import { STORED_KEY } from "@/lib/fileUrl";
 import { checkFileSize, type UploadKind } from "@/lib/uploadLimits";
 
 export type { UploadKind };
@@ -27,6 +28,15 @@ export const UPLOAD_DIR = path.join(process.cwd(), "storage", "uploads");
 
 // Nomes que nós mesmos geramos: UUID + extensão permitida. Qualquer outra coisa não é servida.
 const STORED_NAME = /^[0-9a-f-]{36}\.(jpg|jpeg|png|webp|pdf)$/;
+
+// Nome novo no armazenamento: <uuid>.<ext>, com a extensão tirada do tipo (nunca do nome enviado).
+export function newKey(kind: UploadKind, contentType: string): string {
+  return `${randomUUID()}.${RULES[kind].types[contentType][0]}`;
+}
+
+export function isStoredKey(s: unknown): s is string {
+  return typeof s === "string" && STORED_KEY.test(s);
+}
 
 // O servidor confere tudo de novo: tipo, extensão do nome e tamanho (o navegador pode mentir).
 export function validateUpload(file: File, kind: UploadKind): { ok: true } | { ok: false; error: string } {
