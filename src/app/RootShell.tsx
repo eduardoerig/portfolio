@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { siteUrl } from "@/lib/site";
 import { Geist, Geist_Mono, Unbounded } from "next/font/google";
 import { getDictionary } from "@/i18n/dictionary";
 import type { Locale } from "@/i18n/locales";
@@ -29,6 +30,7 @@ const unbounded = Unbounded({
 export function buildMetadata(locale: Locale): Metadata {
   const { meta } = getDictionary(locale);
   return {
+    metadataBase: siteUrl(),
     title: meta.title,
     description: meta.description,
     alternates: { languages: { "pt-BR": "/", en: "/en" } },

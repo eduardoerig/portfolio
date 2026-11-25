@@ -34,19 +34,25 @@ Outros comandos: `npm test`, `npm run lint`, `npm run build`, `npm start`.
 
 | O quê | Onde |
 | --- | --- |
-| Conteúdo (textos, ordem, visibilidade) | banco SQLite, `prisma/dev.db` (`DATABASE_URL`) |
-| Uploads (foto, imagens, CV) | `storage/uploads` |
-| Segredos | `.env` |
+| Conteúdo (textos, ordem, visibilidade) | banco libSQL/SQLite: local em `prisma/dev.db`, em produção num banco libSQL remoto (`DATABASE_URL`) |
+| Uploads (foto, imagens, CV) | bucket compatível com S3 (Cloudflare R2). O banco guarda só a chave; a URL vem de `NEXT_PUBLIC_FILES_URL` |
+| Segredos | `.env` (local) e variáveis de ambiente da hospedagem |
 
-Ficam **fora do git**: `*.db`, `storage/` e `.env`. Faça backup do banco e de `storage/` por conta própria.
+Ficam **fora do git**: `*.db` e `.env`. Faça backup do banco por conta própria.
+
+Os arquivos vão do navegador **direto para o bucket**, por uma URL pré-assinada que o servidor só gera depois de conferir o login, o tipo e o tamanho. Por isso o bucket precisa de CORS liberando `PUT` vindo do site (e de `http://localhost:3000` em desenvolvimento).
 
 Bancos antigos (criados antes do campo de nível das habilidades): rode `npm run backfill:skill-level` **uma vez**, depois do `db push`. Banco novo não precisa.
 
-## Publicando depois
+## Publicar
 
-O site grava em disco (SQLite e uploads), então precisa de um servidor com **disco persistente** (VPS ou Docker com volume). Hospedagem serverless não serve.
+O site roda em qualquer hospedagem Node que aceite Next.js, sem disco persistente: banco e arquivos ficam em serviços externos.
 
-- `npm run build` e depois `npm start`, com `.env`, banco e `storage/` no volume.
-- Proxy reverso (nginx etc.): libere corpo de requisição de **pelo menos 9 MB**, senão os uploads falham.
-- Defina `metadataBase` com o domínio real, para os links `hreflang` (PT/EN) saírem certos.
-- Use um `SESSION_SECRET` próprio de produção e HTTPS.
+1. **Banco:** crie um banco libSQL (Turso) e um token. Ponha no `.env` local `REMOTE_DATABASE_URL` e `REMOTE_DATABASE_AUTH_TOKEN` e rode, uma vez:
+   - `npm run db:remote:init`, que cria as tabelas;
+   - `npm run db:copy`, que copia o conteúdo do `dev.db`. Ele se recusa a rodar se o destino já tiver dados, e caminhos de arquivo antigos viram vazio.
+2. **Arquivos:** crie um bucket R2 com acesso público de leitura, um token de API com leitura e escrita só nesse bucket e o CORS do item anterior.
+3. **Variáveis de ambiente** na hospedagem (só no ambiente de produção): veja o `.env.example`. `DATABASE_URL` e `DATABASE_AUTH_TOKEN` são as do banco remoto, e `SITE_URL` é o endereço final do site.
+4. Depois de publicar, entre no painel e envie de novo a foto, as imagens e o PDF.
+
+O login bloqueia por alguns minutos depois de 5 senhas erradas seguidas do mesmo IP. Use um `SESSION_SECRET` próprio de produção.

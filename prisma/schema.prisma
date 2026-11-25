@@ -80,3 +80,12 @@ model Education {
   order    Int
   visible  Boolean @default(true)
 }
+
+// Falhas de login por IP, para o limite de tentativas (5 em 15 min). Linhas antigas não atrapalham a conta.
+model LoginAttempt {
+  id        Int      @id @default(autoincrement())
+  ip        String
+  createdAt DateTime @default(now())
+
+  @@index([ip, createdAt])
+}
