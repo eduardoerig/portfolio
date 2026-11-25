@@ -188,7 +188,7 @@ describe("envio de arquivos antes de salvar", () => {
     expect(fd.has("photo")).toBe(false);
   });
 
-  it("depois de erro de validação, salvar de novo não reenvia o mesmo arquivo", async () => {
+  it("depois de erro de validação, salvar de novo reenvia o arquivo (o servidor apagou o anterior)", async () => {
     updateProfile.mockResolvedValueOnce({ errors: { email: "E-mail inválido" } });
     wrap(<ProfileEditor row={profileRow} />);
     pick();
@@ -196,7 +196,20 @@ describe("envio de arquivos antes de salvar", () => {
     await screen.findByText("E-mail inválido");
     fireEvent.click(screen.getByRole("button", { name: "Salvar" }));
     await waitFor(() => expect(updateProfile).toHaveBeenCalledTimes(2));
-    expect(requestUpload).toHaveBeenCalledTimes(1);
+    expect(requestUpload).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("reenvio depois de falha", () => {
+  it("se a action lança, o próximo Salvar envia o arquivo de novo", async () => {
+    updateProfile.mockRejectedValueOnce(new Error("rede"));
+    wrap(<ProfileEditor row={profileRow} />);
+    fireEvent.change(screen.getByLabelText("Foto"), { target: { files: [new File([new Uint8Array(10)], "f.png", { type: "image/png" })] } });
+    fireEvent.click(screen.getByRole("button", { name: "Salvar" }));
+    await screen.findAllByRole("alert");
+    fireEvent.click(screen.getByRole("button", { name: "Salvar" }));
+    await waitFor(() => expect(updateProfile).toHaveBeenCalledTimes(2));
+    expect(requestUpload).toHaveBeenCalledTimes(2);
   });
 });
 

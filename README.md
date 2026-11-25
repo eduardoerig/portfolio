@@ -28,7 +28,7 @@ Outros comandos: `npm test`, `npm run lint`, `npm run build`, `npm start`.
 - Edite cada seção em **PT e EN** (perfil, projetos, experiência, habilidades, formação).
 - Controle a **ordem** e a **visibilidade** de cada item (escondido some do site público).
 - Habilidades têm nível: *aprendendo* ou *intermediário*.
-- Envie a **foto**, as **imagens dos projetos** e o **currículo (CV)**. Os arquivos são servidos em `/files/...`.
+- Envie a **foto**, as **imagens dos projetos** e o **currículo (CV)**. Os arquivos vão para o bucket e são servidos pela URL pública dele (`NEXT_PUBLIC_FILES_URL`).
 
 ## Onde ficam os dados
 

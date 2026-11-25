@@ -13,15 +13,6 @@ const RULES: Record<UploadKind, { types: Record<string, string[]> }> = {
   pdf: { types: { "application/pdf": ["pdf"] } },
 };
 
-// Tipo de resposta de cada extensão guardada (usado pela rota /files).
-export const CONTENT_TYPES: Record<string, string> = {
-  jpg: "image/jpeg",
-  jpeg: "image/jpeg",
-  png: "image/png",
-  webp: "image/webp",
-  pdf: "application/pdf",
-};
-
 // Nome novo no armazenamento: <uuid>.<ext>, com a extensão tirada do tipo (nunca do nome enviado).
 export function newKey(kind: UploadKind, contentType: string): string {
   return `${randomUUID()}.${RULES[kind].types[contentType][0]}`;

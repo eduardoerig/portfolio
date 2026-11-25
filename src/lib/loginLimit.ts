@@ -13,6 +13,15 @@ export async function isBlocked(ip: string, now = new Date()): Promise<boolean> 
   return (await db.loginAttempt.count({ where: { ip, createdAt: { gte: since } } })) >= MAX_FAILURES;
 }
 
+// Conta a tentativa ANTES de conferir a senha e diz se ela passou do limite. Cada tentativa ganha
+// uma posição (o id), então pedidos em paralelo não passam todos: só as 5 primeiras da janela.
+export async function registerAttempt(ip: string, now = new Date()): Promise<boolean> {
+  const { id } = await db.loginAttempt.create({ data: { ip, createdAt: now } });
+  const since = new Date(now.getTime() - WINDOW_MS);
+  const rank = await db.loginAttempt.count({ where: { ip, createdAt: { gte: since }, id: { lte: id } } });
+  return rank > MAX_FAILURES;
+}
+
 export async function recordFailure(ip: string): Promise<void> {
   await db.loginAttempt.create({ data: { ip } });
 }

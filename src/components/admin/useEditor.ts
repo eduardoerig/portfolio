@@ -28,7 +28,7 @@ export function useEditor({ kind, row, save, onSaved }: Options) {
   const [saved, setSaved] = useState<Record<string, File>>({}); // enviados e salvos: a prévia não volta à imagem antiga
   const [dirty, setLocalDirty] = useState(false);
   const busy = useRef(false); // o estado só muda no próximo render: o ref barra o segundo clique
-  const uploaded = useRef(new WeakMap<File, string>()); // arquivo já enviado não sobe de novo num novo Salvar
+  const uploaded = useRef(new WeakMap<File, string>()); // enviado antes de outro arquivo falhar: não sobe de novo
   const [uploading, setUploading] = useState(false);
 
   const edits = useRef(0); // conta alterações: o envio só limpa o "não salvo" se nada mudou durante ele
@@ -85,6 +85,8 @@ export function useEditor({ kind, row, save, onSaved }: Options) {
       }
       // 2) O formulário leva só as chaves.
       const result = await save(draftToFormData(draft, keys, removed));
+      // Salvar falhou: o servidor apaga o que recebeu, então o próximo Salvar envia o arquivo de novo.
+      if (!result.ok) uploaded.current = new WeakMap();
       const errs = result.errors ?? {};
       setErrors(errs);
       // erro só no outro idioma: vai para ele, senão o campo com a mensagem fica escondido
@@ -110,6 +112,7 @@ export function useEditor({ kind, row, save, onSaved }: Options) {
         onSaved();
       }
     } catch {
+      uploaded.current = new WeakMap(); // não dá para saber se o servidor apagou o arquivo: envia de novo
       setUploading(false);
       setFailed(true); // rascunho, arquivos e etiquetas ficam como estão
     } finally {

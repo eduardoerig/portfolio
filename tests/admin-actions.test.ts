@@ -264,6 +264,24 @@ describe("uploads nas actions (por chave)", () => {
     expect(bucket.has(photo)).toBe(false);
   });
 
+  it("chave que já está em uso não é apagada nem duplicada", async () => {
+    const photo = put("png", "image/png");
+    const cv = put("pdf", "application/pdf");
+    await actions.updateProfile(form({ ...base, photoKey: photo, cvKey: cv }));
+
+    // currículo em uso mandado como imagem de projeto: recusa sem apagar o currículo
+    const r = await actions.saveItem("project", form({ id: "1", title: "Requests", description: "D", imageKey: cv }));
+    expect(r.errors?.image).toBe("Arquivo inválido");
+    expect(bucket.has(cv)).toBe(true);
+
+    // mesma foto de novo: continua salva e não some do bucket
+    await actions.updateProfile(form({ ...base, photoKey: photo }));
+    expect((await db.profile.findUniqueOrThrow({ where: { id: 1 } })).photoPath).toBe(photo);
+    expect(bucket.has(photo)).toBe(true);
+
+    await actions.updateProfile(form({ ...base, remove_photo: "on", remove_cv: "on" }));
+  });
+
   it("não aceita photoPath vindo do formulário", async () => {
     await actions.updateProfile(form({ ...base, photoPath: "x.png" }));
     expect((await db.profile.findUniqueOrThrow({ where: { id: 1 } })).photoPath).toBeNull();

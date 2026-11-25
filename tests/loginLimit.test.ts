@@ -43,6 +43,11 @@ describe("limite de tentativas no login", () => {
     expect(await limit.isBlocked("1.2.3.4")).toBe(false);
   });
 
+  it("10 tentativas em paralelo: no máximo 5 passam", async () => {
+    const results = await Promise.all(Array.from({ length: 10 }, () => limit.registerAttempt("9.9.9.9")));
+    expect(results.filter((blocked) => !blocked).length).toBeLessThanOrEqual(5);
+  });
+
   it("clientIp usa o primeiro valor de x-forwarded-for, ou 'local'", () => {
     expect(limit.clientIp(new Headers({ "x-forwarded-for": "1.2.3.4, 10.0.0.1" }))).toBe("1.2.3.4");
     expect(limit.clientIp(new Headers())).toBe("local");

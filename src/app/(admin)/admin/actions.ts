@@ -128,6 +128,12 @@ async function readUploads(form: FormData, slots: Slot[]): Promise<UploadResult>
       errors[slot.field] = "Arquivo inválido";
       continue;
     }
+    if (key === slot.current) continue; // o mesmo arquivo de antes: nada muda
+    // Chave de um arquivo que já está em uso (outro campo ou item): nunca vira "novo", senão seria apagada.
+    if (await isReferenced(key)) {
+      errors[slot.field] = "Arquivo inválido";
+      continue;
+    }
     const stored = await headObject(key);
     if (!stored) {
       errors[slot.field] = "Arquivo não encontrado";
@@ -151,6 +157,14 @@ async function readUploads(form: FormData, slots: Slot[]): Promise<UploadResult>
     }
   }
   return { changes, created, old };
+}
+
+async function isReferenced(key: string): Promise<boolean> {
+  const [profiles, projects] = await Promise.all([
+    db.profile.count({ where: { OR: [{ photoPath: key }, { cvPath: key }] } }),
+    db.project.count({ where: { imagePath: key } }),
+  ]);
+  return profiles + projects > 0;
 }
 
 // Só apaga o que é nosso; caminhos antigos (/files/...) não estão no armazenamento.

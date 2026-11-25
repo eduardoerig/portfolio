@@ -2,13 +2,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const blocked = vi.fn();
-const recordFailure = vi.fn();
 const clearFailures = vi.fn();
 const verifyPassword = vi.fn();
 vi.mock("@/lib/loginLimit", () => ({
   clientIp: () => "1.2.3.4",
-  isBlocked: () => blocked(),
-  recordFailure: (ip: string) => recordFailure(ip),
+  registerAttempt: () => blocked(),
   clearFailures: (ip: string) => clearFailures(ip),
 }));
 vi.mock("@/lib/auth", () => ({
@@ -41,12 +39,13 @@ describe("login com limite de tentativas", () => {
     expect(verifyPassword).not.toHaveBeenCalled();
   });
 
-  it("senha errada registra a falha; certa limpa as falhas", async () => {
+  it("a tentativa conta antes de conferir a senha; senha certa limpa as falhas", async () => {
     blocked.mockResolvedValue(false);
     const { login } = await import("@/app/(admin)/admin/login/actions");
     verifyPassword.mockResolvedValue(false);
-    await login({}, form("errada"));
-    expect(recordFailure).toHaveBeenCalledWith("1.2.3.4");
+    expect(await login({}, form("errada"))).toEqual({ error: "Senha incorreta" });
+    expect(blocked).toHaveBeenCalledTimes(1);
+    expect(clearFailures).not.toHaveBeenCalled();
     verifyPassword.mockResolvedValue(true);
     await login({}, form("certa"));
     expect(clearFailures).toHaveBeenCalledWith("1.2.3.4");
