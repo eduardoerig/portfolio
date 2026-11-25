@@ -11,9 +11,14 @@
     "backfill:skill-level": "tsx prisma/backfill-skill-level.ts",
     "backfill:stack-en": "tsx prisma/backfill-stack-en.ts",
     "test": "vitest run",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate",
+    "db:remote:init": "tsx --env-file=.env scripts/db-remote-init.ts",
+    "db:copy": "tsx --env-file=.env scripts/db-copy.ts",
+    "db:clear-legacy-paths": "tsx --env-file=.env scripts/clear-legacy-paths.ts"
   },
   "dependencies": {
+    "@libsql/client": "^0.18.0",
+    "@prisma/adapter-libsql": "^6.19.3",
     "@prisma/client": "^6.19.3",
     "bcryptjs": "^3.0.3",
     "jose": "^6.2.18",
