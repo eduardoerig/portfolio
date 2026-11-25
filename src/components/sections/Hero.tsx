@@ -1,3 +1,4 @@
+import Image from "next/image";
 import type { CSSProperties } from "react";
 import GithubIcon from "@/components/icons/GithubIcon";
 import LinkedinIcon from "@/components/icons/LinkedinIcon";
@@ -16,10 +17,9 @@ export default function Hero({ profile, dict }: { profile: Profile; dict: Dictio
       <div className="photo-wrap hero-pop">
         <div className="photo-ring" aria-hidden="true" />
         <div className="photo-orbit" aria-hidden="true" />
-        <div className="photo">
+        <div className="photo relative">
           {profile.photoPath ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={profile.photoPath} alt={`${dict.hero.photoAlt} ${profile.name}`} className="h-full w-full object-cover" />
+            <Image src={profile.photoPath} alt={`${dict.hero.photoAlt} ${profile.name}`} fill sizes="140px" priority className="object-cover" />
           ) : (
             <span aria-hidden="true">EE</span>
           )}

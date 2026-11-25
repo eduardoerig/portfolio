@@ -222,7 +222,7 @@ describe("prévia fiel ao site", () => {
   it("marcar remover tira a imagem da prévia na hora", () => {
     const { container } = wrap(<ItemEditor kind="project" row={withImage} base="/admin/projetos" />);
     expect(previewImgs(container)).toBe(1);
-    expect(container.querySelector("aside img")?.getAttribute("src")).toBe(`https://pub.test/${KEY}`);
+    expect(container.querySelector("aside img")?.getAttribute("src")).toContain(encodeURIComponent(`https://pub.test/${KEY}`));
     fireEvent.click(screen.getByLabelText("remover"));
     expect(previewImgs(container)).toBe(0);
   });

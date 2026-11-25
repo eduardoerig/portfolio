@@ -1,3 +1,4 @@
+import Image from "next/image";
 import TiltCard from "@/components/TiltCard";
 import type { Dictionary } from "@/i18n/dictionary";
 import type { Project } from "@/lib/types";
@@ -7,8 +8,14 @@ export default function ProjectCard({ project, dict }: { project: Project; dict:
     <TiltCard className="card h-full">
       <article className="flex h-full flex-col">
         {project.imagePath && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={project.imagePath} alt={`${dict.imageAlt} ${project.title}`} className="mb-4 w-full rounded-lg" />
+          <Image
+            src={project.imagePath}
+            alt={`${dict.imageAlt} ${project.title}`}
+            width={1200}
+            height={800}
+            sizes="(min-width: 640px) 50vw, 100vw"
+            className="mb-4 h-auto w-full rounded-lg"
+          />
         )}
         <h3 className="display text-lg">{project.title}</h3>
         <p className="mt-2 text-sm leading-relaxed text-muted">{project.description}</p>

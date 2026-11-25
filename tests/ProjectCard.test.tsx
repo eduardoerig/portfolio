@@ -29,4 +29,11 @@ describe("ProjectCard", () => {
     render(<ProjectCard project={{ ...base, metric: "1.777 views" }} dict={dict} />);
     expect(screen.getByText("1.777 views")).toBeTruthy();
   });
+
+  it("a imagem do projeto sai reduzida, com versões por largura de tela", () => {
+    render(<ProjectCard project={{ ...base, imagePath: "https://pub.test/p.png" }} dict={dict} />);
+    const img = screen.getByRole("img");
+    expect(img.getAttribute("src")).toContain("/_next/image?url=https%3A%2F%2Fpub.test%2Fp.png");
+    expect(img.getAttribute("sizes")).toBeTruthy();
+  });
 });
