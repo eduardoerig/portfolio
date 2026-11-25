@@ -6,7 +6,8 @@ import { requireAdmin } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { moveItem } from "@/lib/reorder";
 import { assertKind, ORDER, table, type Kind } from "@/lib/tables";
-import { deleteUpload, saveUpload, validateUpload, type UploadKind } from "@/lib/uploads";
+import { deleteObject, headObject, presignPut } from "@/lib/storage";
+import { isStoredKey, newKey, validateUpload, type UploadKind } from "@/lib/uploads";
 
 // Resultado dos formulários: erros por campo, em português, para mostrar ao lado do campo.
 export type FormState = { ok?: boolean; errors?: Record<string, string> };
@@ -108,33 +109,39 @@ const refresh = () => {
 };
 
 // ---------- Uploads ----------
-// Cada campo de arquivo do formulário grava num campo do banco. Os campos *Path nunca vêm do
-// formulário (o zod os descarta): só recebem o caminho de um arquivo que passou na validação.
+// O navegador envia o arquivo direto ao armazenamento (URL pré-assinada) e o formulário traz só a chave
+// em <campo>Key. Os campos *Path nunca vêm do formulário (o zod os descarta): só recebem uma chave que
+// existe no armazenamento com tipo e tamanho permitidos.
 
 type Slot = { field: string; column: string; kind: UploadKind; current: string | null };
-type UploadResult = { errors: Record<string, string> } | { changes: Record<string, string | null>; created: string[]; old: string[] };
+type UploadResult = { errors: Record<string, string>; created: string[] } | { changes: Record<string, string | null>; created: string[]; old: string[] };
 
-// Valida e grava os arquivos enviados. Marcar "remover" (remove_<campo>) limpa o campo.
+// Confere cada chave enviada. Marcar "remover" (remove_<campo>) limpa o campo.
 async function readUploads(form: FormData, slots: Slot[]): Promise<UploadResult> {
   const errors: Record<string, string> = {};
-  const files: [Slot, File][] = [];
+  const created: string[] = []; // chaves válidas que existem no armazenamento (apagadas se o salvamento falhar)
+  const changes: Record<string, string | null> = {};
   for (const slot of slots) {
-    const file = form.get(slot.field);
-    if (!(file instanceof File) || file.size === 0) continue; // nenhum arquivo escolhido
-    const check = validateUpload(file, slot.kind);
-    if (check.ok) files.push([slot, file]);
+    const key = form.get(`${slot.field}Key`);
+    if (key === null || key === "") continue; // nenhum arquivo novo
+    if (!isStoredKey(key)) {
+      errors[slot.field] = "Arquivo inválido";
+      continue;
+    }
+    const stored = await headObject(key);
+    if (!stored) {
+      errors[slot.field] = "Arquivo não encontrado";
+      continue;
+    }
+    created.push(key);
+    // Mesmas regras de antes, agora sobre o que de fato está guardado.
+    const check = validateUpload({ type: stored.contentType, size: stored.size, name: key }, slot.kind);
+    if (check.ok) changes[slot.column] = key;
     else errors[slot.field] = check.error;
   }
-  if (Object.keys(errors).length) return { errors };
+  if (Object.keys(errors).length) return { errors, created };
 
-  const changes: Record<string, string | null> = {};
-  const created: string[] = [];
   const old: string[] = [];
-  for (const [slot, file] of files) {
-    const path = await saveUpload(file, slot.kind);
-    changes[slot.column] = path;
-    created.push(path);
-  }
   for (const slot of slots) {
     if (slot.column in changes) {
       if (slot.current) old.push(slot.current); // trocado
@@ -146,18 +153,37 @@ async function readUploads(form: FormData, slots: Slot[]): Promise<UploadResult>
   return { changes, created, old };
 }
 
+// Só apaga o que é nosso; caminhos antigos (/files/...) não estão no armazenamento.
+const removeStored = (keys: string[]) => Promise.all(keys.filter(isStoredKey).map(deleteObject));
+
 // Os arquivos antigos só somem depois que o banco aceitou a mudança; se o banco falhar, some o novo.
 async function commitUploads(up: { created: string[]; old: string[] }, saveToDb: () => Promise<unknown>) {
   try {
     await saveToDb();
   } catch (e) {
-    await Promise.all(up.created.map(deleteUpload));
+    await removeStored(up.created);
     throw e;
   }
-  await Promise.all(up.old.map(deleteUpload));
+  await removeStored(up.old);
 }
 
 // ---------- Actions (todas começam com requireAdmin) ----------
+
+// Pede uma URL de envio direto ao armazenamento. Tipo e tamanho seguem as mesmas regras de sempre.
+export async function requestUpload(
+  kind: UploadKind,
+  contentType: string,
+  size: number,
+): Promise<{ ok: true; key: string; url: string } | { ok: false; error: string }> {
+  await requireAdmin();
+  if (kind !== "image" && kind !== "pdf") return { ok: false, error: "Tipo de arquivo não permitido" };
+  if (!Number.isInteger(size) || size <= 0) return { ok: false, error: "Arquivo inválido" };
+  const ext = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp", "application/pdf": "pdf" }[contentType] ?? "x";
+  const check = validateUpload({ type: contentType, size, name: `arquivo.${ext}` }, kind);
+  if (!check.ok) return { ok: false, error: check.error };
+  const key = newKey(kind, contentType);
+  return { ok: true, key, url: await presignPut(key, contentType, size) };
+}
 
 export async function updateProfile(form: FormData): Promise<FormState> {
   await requireAdmin();
@@ -170,7 +196,7 @@ export async function updateProfile(form: FormData): Promise<FormState> {
   // Erros do formulário e dos arquivos aparecem juntos.
   const errors = { ...("errors" in parsed ? parsed.errors : {}), ...("errors" in up ? up.errors : {}) };
   if ("errors" in parsed || "errors" in up) {
-    if ("changes" in up) await Promise.all(up.created.map(deleteUpload)); // o formulário falhou: não deixa arquivo órfão
+    await removeStored(up.created); // o formulário falhou: não deixa arquivo órfão
     return { errors };
   }
   await commitUploads(up, () => db.profile.update({ where: { id: 1 }, data: { ...parsed.data, ...up.changes } }));
@@ -194,7 +220,7 @@ export async function saveItem(kind: Kind, form: FormData): Promise<FormState> {
   const up = await readUploads(form, slots);
   const errors = { ...("errors" in parsed ? parsed.errors : {}), ...("errors" in up ? up.errors : {}) };
   if ("errors" in parsed || "errors" in up) {
-    if ("changes" in up) await Promise.all(up.created.map(deleteUpload));
+    await removeStored(up.created);
     return { errors };
   }
 
@@ -222,7 +248,7 @@ export async function deleteItem(kind: Kind, id: number): Promise<void> {
   await requireAdmin();
   const project = kind === "project" ? await db.project.findUnique({ where: { id } }) : null;
   await table(kind).delete({ where: { id } });
-  if (project?.imagePath) await deleteUpload(project.imagePath); // não deixa a imagem órfã
+  if (project?.imagePath) await removeStored([project.imagePath]); // não deixa a imagem órfã
   refresh();
 }
 

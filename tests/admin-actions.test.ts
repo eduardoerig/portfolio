@@ -1,8 +1,8 @@
 // @vitest-environment node
 import { execSync } from "node:child_process";
-import { existsSync, readdirSync, rmSync } from "node:fs";
-import path from "node:path";
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { rmSync } from "node:fs";
+import { isStoredKey } from "@/lib/uploads";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 // Banco separado só para estes testes (outro arquivo, para rodar em paralelo com portfolio.test.ts).
 process.env.DATABASE_URL = "file:./test-admin.db";
@@ -11,6 +11,14 @@ const requireAdmin = vi.fn(async () => {});
 vi.mock("@/lib/auth", () => ({ requireAdmin: () => requireAdmin() }));
 const revalidatePath = vi.fn();
 vi.mock("next/cache", () => ({ revalidatePath: (p: string) => revalidatePath(p) }));
+// Bucket em memória no lugar do R2: nenhum teste usa rede.
+const bucket = new Map<string, { size: number; contentType: string }>();
+const storage = {
+  presignPut: vi.fn(async (key: string) => `https://r2.test/${key}?X-Amz-Expires=300`),
+  headObject: vi.fn(async (key: string) => bucket.get(key) ?? null),
+  deleteObject: vi.fn(async (key: string) => void bucket.delete(key)),
+};
+vi.mock("@/lib/storage", () => storage);
 
 type Db = typeof import("@/lib/db").db;
 type Actions = typeof import("@/app/(admin)/admin/actions");
@@ -38,6 +46,7 @@ beforeEach(() => {
   requireAdmin.mockReset();
   requireAdmin.mockResolvedValue(undefined);
   revalidatePath.mockReset();
+  Object.values(storage).forEach((f) => f.mockClear());
 });
 
 afterAll(() => db?.$disconnect());
@@ -105,7 +114,6 @@ describe("toggleVisible e move", () => {
   });
 });
 
-const png = () => new File([new Uint8Array(50)], "foto.png", { type: "image/png" });
 const uploadForm = (fields: Record<string, string | File>) => {
   const f = new FormData();
   for (const [k, v] of Object.entries(fields)) f.set(k, v);
@@ -115,7 +123,7 @@ const uploadForm = (fields: Record<string, string | File>) => {
 const snapshot = async () => ({
   profile: await db.profile.findMany(),
   projects: await db.project.findMany({ orderBy: { id: "asc" } }),
-  uploads: existsSync("storage/uploads") ? readdirSync("storage/uploads").sort() : [],
+  bucket: [...bucket.keys()].sort(),
 });
 
 describe("deleteItem e autorização", () => {
@@ -126,13 +134,13 @@ describe("deleteItem e autorização", () => {
   });
 
   it.each([
-    ["updateProfile", () => actions.updateProfile(uploadForm({ name: "Hacker", photo: png() }))],
-    ["saveItem", () => actions.saveItem("project", uploadForm({ id: "", title: "Hack", description: "D", image: png() }))],
+    ["updateProfile", () => actions.updateProfile(uploadForm({ name: "Hacker", photoKey: `${crypto.randomUUID()}.png` }))],
+    ["saveItem", () => actions.saveItem("project", uploadForm({ id: "", title: "Hack", description: "D", imageKey: `${crypto.randomUUID()}.png` }))],
     ["deleteItem", () => actions.deleteItem("project", 1)],
     ["toggleVisible", () => actions.toggleVisible("project", 1)],
     ["move", () => actions.move("project", 1, "down")],
   ])("%s exige admin, não muda o banco e não grava arquivo", async (_nome, chamar) => {
-    // Foto de verdade no envio: se a action gravasse antes de checar a sessão, apareceria em storage/uploads.
+    // Chave no envio: se a action consultasse ou apagasse algo antes de checar a sessão, o bucket mudaria.
     const antes = await snapshot();
     requireAdmin.mockRejectedValue(new Error("Não autorizado"));
     await expect(chamar()).rejects.toThrow("Não autorizado");
@@ -177,64 +185,101 @@ describe("updateProfile", () => {
   });
 });
 
-describe("uploads nas actions", () => {
+describe("uploads nas actions (por chave)", () => {
   const base = { name: "Eduardo", role: "Dev", summary: "Resumo", email: "a@b.co", githubUrl: "https://github.com/x", linkedinUrl: "https://linkedin.com/in/x" };
-  const withFiles = (fields: Record<string, string>, files: Record<string, File>) => {
-    const f = form(fields);
-    for (const [k, v] of Object.entries(files)) f.set(k, v);
-    return f;
+  const put = (ext: string, contentType: string, size = 50) => {
+    const key = `${crypto.randomUUID()}.${ext}`;
+    bucket.set(key, { size, contentType });
+    return key;
   };
-  const png = (name = "foto.png") => new File([new Uint8Array(50)], name, { type: "image/png" });
-  const pdf = new File([new Uint8Array(50)], "cv.pdf", { type: "application/pdf" });
-  const onDisk = (publicPath: string | null) => existsSync(path.join("storage", "uploads", publicPath!.replace("/files/", "")));
-  const cleanup: (string | null)[] = [];
-  afterEach(async () => {
-    const { deleteUpload } = await import("@/lib/uploads");
-    for (const p of cleanup.splice(0)) if (p) await deleteUpload(p);
+
+  it("requestUpload exige admin e não assina nada sem sessão", async () => {
+    requireAdmin.mockRejectedValue(new Error("Não autorizado"));
+    await expect(actions.requestUpload("image", "image/png", 10)).rejects.toThrow("Não autorizado");
+    expect(storage.presignPut).not.toHaveBeenCalled();
   });
 
-  it("salva foto e currículo, e a troca apaga o arquivo antigo", async () => {
-    await actions.updateProfile(withFiles(base, { photo: png(), cv: pdf }));
+  it("requestUpload recusa SVG e PDF grande; aceita PNG", async () => {
+    expect((await actions.requestUpload("image", "image/svg+xml", 10)).ok).toBe(false);
+    expect((await actions.requestUpload("pdf", "application/pdf", 6 * 1024 * 1024)).ok).toBe(false);
+    const ok = await actions.requestUpload("image", "image/png", 1000);
+    expect(ok.ok).toBe(true);
+    if (ok.ok) {
+      expect(isStoredKey(ok.key)).toBe(true);
+      expect(ok.url).toContain(ok.key);
+    }
+  });
+
+  it("salva foto e currículo pela chave; a troca apaga a antiga", async () => {
+    const photo = put("png", "image/png");
+    const cv = put("pdf", "application/pdf");
+    expect((await actions.updateProfile(form({ ...base, photoKey: photo, cvKey: cv }))).errors).toBeUndefined();
     const first = await db.profile.findUniqueOrThrow({ where: { id: 1 } });
-    cleanup.push(first.photoPath, first.cvPath); // antes dos expects: se falhar, o afterEach ainda limpa
-    expect(first.photoPath).toMatch(/^\/files\/.+\.png$/);
-    expect(first.cvPath).toMatch(/^\/files\/.+\.pdf$/);
+    expect([first.photoPath, first.cvPath]).toEqual([photo, cv]);
 
-    await actions.updateProfile(withFiles(base, { photo: png("outra.png") }));
+    const photo2 = put("webp", "image/webp");
+    await actions.updateProfile(form({ ...base, photoKey: photo2 }));
     const second = await db.profile.findUniqueOrThrow({ where: { id: 1 } });
-    cleanup.push(second.photoPath);
-    expect(second.photoPath).not.toBe(first.photoPath);
-    expect(onDisk(first.photoPath)).toBe(false);
-    expect(onDisk(second.photoPath)).toBe(true);
-    expect(second.cvPath).toBe(first.cvPath); // sem arquivo novo, mantém
+    expect(second.photoPath).toBe(photo2);
+    expect(second.cvPath).toBe(cv);
+    expect(bucket.has(photo)).toBe(false);
 
-    await actions.updateProfile(withFiles({ ...base, remove_photo: "on", remove_cv: "on" }, {}));
+    await actions.updateProfile(form({ ...base, remove_photo: "on", remove_cv: "on" }));
     const third = await db.profile.findUniqueOrThrow({ where: { id: 1 } });
     expect([third.photoPath, third.cvPath]).toEqual([null, null]);
-    expect(onDisk(second.photoPath)).toBe(false);
-    expect(onDisk(first.cvPath)).toBe(false);
+    expect(bucket.has(photo2) || bucket.has(cv)).toBe(false);
   });
 
-  it("arquivo inválido volta erro em português e não altera nada", async () => {
-    const exe = new File([new Uint8Array(5)], "a.exe", { type: "application/octet-stream" });
-    const r = await actions.updateProfile(withFiles({ ...base, role: "Mudou" }, { photo: exe, cv: png() }));
-    expect(r.errors).toEqual({ photo: "Tipo de arquivo não permitido", cv: "Tipo de arquivo não permitido" });
+  it("chave forjada é recusada sem consultar nem apagar nada", async () => {
+    const r = await actions.updateProfile(form({ ...base, role: "Mudou", photoKey: "../x.png" }));
+    expect(r.errors?.photo).toBeTruthy();
+    expect(storage.headObject).not.toHaveBeenCalled();
+    expect(storage.deleteObject).not.toHaveBeenCalled();
     expect((await db.profile.findUniqueOrThrow({ where: { id: 1 } })).role).not.toBe("Mudou");
   });
 
+  it("chave que não existe no bucket vira 'Arquivo não encontrado'", async () => {
+    const r = await actions.updateProfile(form({ ...base, photoKey: `${crypto.randomUUID()}.png` }));
+    expect(r.errors?.photo).toBe("Arquivo não encontrado");
+  });
+
+  it("objeto com tipo errado para o campo é recusado e apagado", async () => {
+    const wrong = put("png", "application/pdf");
+    const r = await actions.updateProfile(form({ ...base, photoKey: wrong }));
+    expect(r.errors?.photo).toBe("Tipo de arquivo não permitido");
+    expect(bucket.has(wrong)).toBe(false);
+  });
+
+  it("objeto maior que o limite é recusado e apagado", async () => {
+    const big = put("png", "image/png", 4 * 1024 * 1024);
+    const r = await actions.updateProfile(form({ ...base, photoKey: big }));
+    expect(r.errors?.photo).toBeTruthy();
+    expect(bucket.has(big)).toBe(false);
+  });
+
+  it("formulário inválido apaga o objeto recém-enviado", async () => {
+    const photo = put("png", "image/png");
+    const r = await actions.updateProfile(form({ ...base, email: "xx", photoKey: photo }));
+    expect(r.errors?.email).toBeTruthy();
+    expect(bucket.has(photo)).toBe(false);
+  });
+
   it("não aceita photoPath vindo do formulário", async () => {
-    await actions.updateProfile(form({ ...base, photoPath: "/files/x.png" }));
+    await actions.updateProfile(form({ ...base, photoPath: "x.png" }));
     expect((await db.profile.findUniqueOrThrow({ where: { id: 1 } })).photoPath).toBeNull();
   });
 
-  it("imagem de projeto: salva, e remover apaga o arquivo", async () => {
-    await actions.saveItem("project", withFiles({ id: "1", title: "Requests", description: "D" }, { image: png() }));
-    const p = await db.project.findUniqueOrThrow({ where: { id: 1 } });
-    cleanup.push(p.imagePath);
-    expect(onDisk(p.imagePath)).toBe(true);
-
+  it("imagem de projeto: salva pela chave, remover e excluir apagam do bucket", async () => {
+    const img = put("jpg", "image/jpeg");
+    await actions.saveItem("project", form({ id: "1", title: "Requests", description: "D", imageKey: img }));
+    expect((await db.project.findUniqueOrThrow({ where: { id: 1 } })).imagePath).toBe(img);
     await actions.saveItem("project", form({ id: "1", title: "Requests", description: "D", remove_image: "on" }));
     expect((await db.project.findUniqueOrThrow({ where: { id: 1 } })).imagePath).toBeNull();
-    expect(onDisk(p.imagePath)).toBe(false);
+    expect(bucket.has(img)).toBe(false);
+
+    const img2 = put("png", "image/png");
+    await actions.saveItem("project", form({ id: "2", title: "Dolce", description: "D", imageKey: img2 }));
+    await actions.deleteItem("project", 2);
+    expect(bucket.has(img2)).toBe(false);
   });
 });
