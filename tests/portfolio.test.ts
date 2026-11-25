@@ -99,5 +99,5 @@ describe("getPortfolio", () => {
     const { profile, projects } = await getPortfolio("pt");
     expect(profile.summary).toBe("Resumo editado");
     expect(projects.map((p) => p.id)).not.toContain(4);
-  });
+  }, 30_000); // roda `npx prisma db seed` de verdade: passa de 5 s com a suíte inteira em paralelo
 });

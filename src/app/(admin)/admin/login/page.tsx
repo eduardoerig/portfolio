@@ -7,9 +7,16 @@ export default function LoginPage() {
   const [state, formAction, pending] = useActionState(login, {});
 
   return (
-    <main className="flex min-h-screen items-center justify-center p-6">
+    <main
+      className="flex min-h-screen items-center justify-center p-6"
+      style={{
+        backgroundImage:
+          "linear-gradient(var(--border) 1px, transparent 1px), linear-gradient(90deg, var(--border) 1px, transparent 1px)",
+        backgroundSize: "40px 40px",
+      }}
+    >
       <form action={formAction} className="card flex w-full max-w-sm flex-col gap-4 p-6">
-        <h1 className="text-xl font-semibold">Painel</h1>
+        <h1 className="font-mono text-xl text-[var(--accent)]">&gt; admin</h1>
         <label className="flex flex-col gap-1 text-sm">
           Senha
           <input

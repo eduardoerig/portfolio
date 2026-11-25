@@ -15,6 +15,7 @@
   --on-accent: #ffffff;
   /* Texto de erro: passa de 4.5:1 sobre o fundo e o cartão nos dois temas. */
   --danger: #ff8f8f;
+  --success: #4ade80;
   /* Fundo de controles preenchidos (botão principal, menu ativo): um pouco mais escuro
      que --accent para o texto branco passar de 4.5:1. --accent segue para texto e bordas. */
   --accent-strong: #2f6bf0;
@@ -44,6 +45,7 @@
   --accent-deep: #c9d6f5;
   --accent-strong: #1f4fd1;
   --danger: #b42318;
+  --success: #15803d;
   --grid: #e6ebf2;
   --hue-blue: #3d5f9e;
   --hue-teal: #2f7a72;

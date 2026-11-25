@@ -1,21 +1,8 @@
 import { db } from "@/lib/db";
-import { parseList } from "@/lib/lists";
+import { pick, pickList, pickNull, toLevel } from "@/lib/localize";
 import { ORDER } from "@/lib/tables";
 import type { Locale } from "@/i18n/locales";
-import type { Portfolio, SkillLevel } from "@/lib/types";
-
-// Usa o texto em inglês quando existir; senão cai no português.
-const pick = (locale: Locale, pt: string, en: string | null) =>
-  locale === "en" && en ? en : pt;
-const pickNull = (locale: Locale, pt: string | null, en: string | null) =>
-  locale === "en" && en ? en : pt;
-const pickList = (locale: Locale, pt: string, en: string | null): string[] => {
-  const list = parseList(locale === "en" && en ? en : pt);
-  return list.length === 0 ? parseList(pt) : list;
-};
-
-// A coluna é texto livre no banco; qualquer valor desconhecido vira "sem rótulo".
-const toLevel = (v: string | null): SkillLevel => (v === "learning" || v === "intermediate" ? v : null);
+import type { Portfolio } from "@/lib/types";
 
 export async function getPortfolio(locale: Locale): Promise<Portfolio> {
   const where = { visible: true };
