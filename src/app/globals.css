@@ -1,0 +1,684 @@
+@import "tailwindcss";
+
+/* Paleta: ~90% azul-marinho neutro, ~10% azul vivo (--accent) só onde o olho deve ir.
+   Tema escuro é o padrão; o THEME_SCRIPT troca data-theme no <html>. */
+:root {
+  color-scheme: dark;
+  --bg: #060b16;
+  --surface: #0c1424;
+  --border: #18243a;
+  --fg: #e6ebf3;
+  --muted: #8b97ab;
+  --accent: #3d7bfd;
+  --accent-deep: #1f3a8a;
+  --grid: #0b1322;
+  --on-accent: #ffffff;
+  /* Texto de erro: passa de 4.5:1 sobre o fundo e o cartão nos dois temas. */
+  --danger: #ff8f8f;
+  /* Fundo de controles preenchidos (botão principal, menu ativo): um pouco mais escuro
+     que --accent para o texto branco passar de 4.5:1. --accent segue para texto e bordas. */
+  --accent-strong: #2f6bf0;
+  /* Tons discretos para os grupos de competências (só borda e texto). */
+  --hue-blue: #6f8fc9;
+  --hue-teal: #5fa8a0;
+  --hue-violet: #9a8cc9;
+  --hue-amber: #c4a46a;
+  --hue-slate: #8b97ab;
+  /* Cores oficiais das bandeiras (iguais nos dois temas). */
+  --flag-br-green: #009c3b;
+  --flag-br-yellow: #ffdf00;
+  --flag-br-blue: #002776;
+  --flag-us-red: #b22234;
+  --flag-us-white: #ffffff;
+  --flag-us-blue: #3c3b6e;
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+  --bg: #f3f5f9;
+  --surface: #ffffff;
+  --border: #dfe5ee;
+  --fg: #0d1726;
+  --muted: #5b6678;
+  --accent: #1f4fd1;
+  --accent-deep: #c9d6f5;
+  --accent-strong: #1f4fd1;
+  --danger: #b42318;
+  --grid: #e6ebf2;
+  --hue-blue: #3d5f9e;
+  --hue-teal: #2f7a72;
+  --hue-violet: #65589c;
+  --hue-amber: #8a6a2c;
+  --hue-slate: #5b6678;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-fg: var(--fg);
+  --color-accent: var(--accent);
+  --color-muted: var(--muted);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  --font-display: var(--font-unbounded);
+}
+
+body {
+  overflow-x: hidden;
+  background-color: var(--bg);
+  /* brilho suave no topo + grade fina de 48px */
+  background-image:
+    radial-gradient(900px 480px at 50% -10%, color-mix(in srgb, var(--accent-deep) 45%, transparent), transparent 70%),
+    linear-gradient(var(--grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size: auto, 48px 48px, 48px 48px;
+  background-attachment: fixed;
+  color: var(--fg);
+  font-family: var(--font-sans), sans-serif;
+}
+
+/* Âncoras do menu não ficam escondidas atrás da barra fixa. */
+section[id] {
+  scroll-margin-top: 5rem;
+}
+
+/* Classes próprias ficam em "components" para que utilitários do Tailwind (ex.: py-3) possam sobrescrevê-las. */
+@layer components {
+  /* ---------- Títulos de seção ---------- */
+  .label {
+    font-family: var(--font-mono), monospace;
+    font-size: 0.75rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--accent);
+  }
+  .display {
+    font-family: var(--font-display), sans-serif;
+    font-weight: 700;
+    line-height: 1.1;
+    letter-spacing: -0.01em;
+  }
+  .section-title {
+    margin-top: 0.5rem;
+    margin-bottom: 2rem;
+    font-size: clamp(1.75rem, 5vw, 2.75rem);
+  }
+
+  /* ---------- Cartões, chips, pílulas, botões ---------- */
+  .card {
+    border: 1px solid var(--border);
+    border-radius: 1rem;
+    background: var(--surface);
+    padding: 1.25rem;
+  }
+
+  .chip {
+    border: 1px solid var(--chip-color, var(--border));
+    border-radius: 999px;
+    padding: 0.2rem 0.75rem;
+    font-size: 0.8rem;
+    color: var(--chip-color, var(--muted));
+    /* inline-flex alinha o ícone (quando há) com o texto */
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+  /* Logo da competência: SVG nítido em qualquer zoom. */
+  .skill-icon {
+    flex: none;
+    width: 15px;
+    height: 15px;
+    transition: filter 0.2s, color 0.2s;
+  }
+  .skill-icon-brand path {
+    fill: var(--brand);
+  }
+  /* No tema claro, cores claras de marca (amarelo do JS, ciano do React) somem no branco:
+     misturamos 30% da cor do texto para escurecer sem perder o tom da marca. */
+  :root[data-theme="light"] .skill-icon-brand path {
+    fill: color-mix(in srgb, var(--brand) 70%, var(--fg));
+  }
+  /* Clarear no hover só faz sentido no escuro. */
+  :root:not([data-theme="light"]) .chip:hover .skill-icon {
+    filter: brightness(1.2);
+  }
+  /* Ícones próprios (sem marca) ficam neutros e clareiam no hover. */
+  .skill-icon-generic {
+    color: var(--muted);
+  }
+  .chip:hover .skill-icon-generic {
+    color: var(--fg);
+  }
+  /* Com nível: borda tracejada. "Intermediário" é um pouco mais firme que "aprendendo". */
+  .chip-learning {
+    border-style: dashed;
+  }
+  .chip-intermediate {
+    border-style: dashed;
+    border-width: 1.5px;
+  }
+  .chip-learning .skill-icon {
+    opacity: 0.75;
+  }
+  /* Cada grupo de competências ganha um tom discreto, na ordem em que aparece. */
+  .hue-0 { --chip-color: var(--hue-blue); }
+  .hue-1 { --chip-color: var(--hue-teal); }
+  .hue-2 { --chip-color: var(--hue-violet); }
+  .hue-3 { --chip-color: var(--hue-amber); }
+  .hue-4 { --chip-color: var(--hue-slate); }
+
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: var(--surface);
+    padding: 0.25rem 0.875rem;
+    font-family: var(--font-mono), monospace;
+    font-size: 0.75rem;
+    color: var(--muted);
+  }
+  .pill-accent {
+    border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+    color: var(--accent);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .dot {
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 8px var(--accent);
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 0.6rem 1.25rem;
+    font-size: 0.875rem;
+    color: var(--fg);
+    transition: border-color 0.2s, filter 0.2s;
+  }
+  .btn:hover {
+    border-color: var(--accent);
+  }
+  .btn-primary {
+    border-color: var(--accent-strong);
+    background: var(--accent-strong);
+    color: var(--on-accent);
+  }
+  .btn-primary:hover {
+    filter: brightness(1.12);
+  }
+
+  /* ---------- Menu flutuante ---------- */
+  .nav {
+    position: fixed;
+    top: 1rem;
+    left: 50%;
+    z-index: 20;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    max-width: calc(100vw - 2rem);
+    transform: translateX(-50%);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--surface) 85%, transparent);
+    padding: 0.375rem;
+    backdrop-filter: blur(10px);
+  }
+  .nav-links {
+    display: flex;
+    gap: 0.25rem;
+    min-width: 0;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .nav-link {
+    flex: none;
+    border-radius: 999px;
+    padding: 0.4rem 0.85rem;
+    font-size: 0.8rem;
+    color: var(--muted);
+    transition: background-color 0.3s, color 0.3s;
+  }
+  .nav-link:hover {
+    color: var(--fg);
+  }
+  .nav-link.is-active {
+    background: var(--accent-strong);
+    color: var(--on-accent);
+  }
+  .nav-mark,
+  .theme-toggle {
+    display: flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    width: 2.25rem;
+    height: 2.25rem;
+    border: 1px solid var(--border);
+    border-radius: 50%;
+  }
+  .nav-mark {
+    font-family: var(--font-display), sans-serif;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--accent);
+  }
+
+  /* ---------- Seletor de idioma (bandeiras) ---------- */
+  .lang-switch {
+    display: flex;
+    flex: none;
+    align-items: center;
+    gap: 0.375rem;
+  }
+  .flag-btn {
+    display: block;
+    overflow: hidden; /* cantos arredondados na bandeira */
+    border-radius: 3px;
+    line-height: 0;
+    opacity: 0.45;
+    transition: opacity 0.2s;
+  }
+  .flag-btn:hover,
+  .flag-btn[aria-pressed="true"] {
+    opacity: 1;
+  }
+  /* Idioma atual: um anel discreto em volta da bandeira. */
+  .flag-btn[aria-pressed="true"] {
+    box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--accent) 60%, transparent);
+  }
+  .flag-btn:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+    opacity: 1;
+  }
+
+  /* Tela de "carregando" ao trocar de idioma. */
+  .lang-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 50;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    background: color-mix(in srgb, var(--bg) 85%, transparent);
+    backdrop-filter: blur(6px);
+    font-family: var(--font-mono), monospace;
+    font-size: 0.875rem;
+    color: var(--muted);
+  }
+  .spinner {
+    width: 28px;
+    height: 28px;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+  }
+
+  /* ---------- Foto do topo ---------- */
+  .photo-wrap {
+    position: relative;
+    width: 140px;
+    height: 140px;
+  }
+  .photo {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    border-radius: 50%;
+    background: var(--surface);
+    box-shadow: 0 0 40px var(--accent-deep);
+    color: var(--accent);
+    font-family: var(--font-display), sans-serif;
+    font-size: 2.25rem;
+    font-weight: 700;
+  }
+  /* Arco brilhante: um gradiente cônico recortado em anel fino pela máscara. */
+  .photo-ring {
+    position: absolute;
+    inset: -10px;
+    border-radius: 50%;
+    background: conic-gradient(var(--accent), transparent 35%);
+    mask: radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 2px));
+  }
+  .photo-orbit {
+    position: absolute;
+    inset: -10px;
+  }
+  .photo-orbit::before {
+    content: "";
+    position: absolute;
+    top: -3px;
+    left: calc(50% - 4px);
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 10px var(--accent);
+  }
+
+  .name-1 {
+    color: var(--fg);
+  }
+  .name-2 {
+    color: color-mix(in srgb, var(--muted) 55%, var(--accent));
+  }
+
+  /* ---------- Linha do tempo ---------- */
+  .timeline {
+    position: relative;
+    padding-left: 1.75rem;
+  }
+  .timeline::before {
+    content: "";
+    position: absolute;
+    top: 0.5rem;
+    bottom: 0.5rem;
+    left: 0.4rem;
+    width: 1px;
+    background: var(--border);
+  }
+  .timeline-dot {
+    position: absolute;
+    top: 1.6rem;
+    left: -1.75rem;
+    width: 0.8rem;
+    height: 0.8rem;
+    border: 2px solid var(--border);
+    border-radius: 50%;
+    background: var(--bg);
+  }
+  .timeline-dot.is-current {
+    border-color: var(--accent);
+    background: var(--accent);
+    box-shadow: 0 0 10px var(--accent);
+  }
+
+  /* ---------- Formas decorativas do fundo ---------- */
+  .shapes {
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    overflow: hidden;
+    pointer-events: none;
+    color: var(--accent);
+  }
+  .shape {
+    position: absolute;
+    opacity: 0.18;
+  }
+  .shape-circle {
+    border: 1px solid currentColor;
+    border-radius: 50%;
+  }
+  .shape-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: currentColor;
+    box-shadow: 0 0 12px currentColor;
+    opacity: 0.5;
+  }
+
+  /* Máscara: a palavra fica dentro de uma "janela" que corta o que passa da borda,
+     assim ela pode subir de baixo para cima sem aparecer antes da hora.
+     O padding/margin negativos deixam espaço para letras como "p" e "j". */
+  .mask {
+    display: inline-block;
+    overflow: hidden;
+    padding-bottom: 0.12em;
+    margin-bottom: -0.12em;
+    vertical-align: bottom;
+  }
+  .mask > span {
+    display: inline-block;
+  }
+
+  .arrow {
+    display: inline-block;
+  }
+
+  /* Cartão 3D: o TiltCard preenche --rx/--ry (inclinação) e --mx/--my (posição do cursor). */
+  .tilt {
+    position: relative;
+    transform: perspective(800px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg));
+  }
+
+  /* ---------- Animações: só para quem não pediu menos movimento ---------- */
+  @media (prefers-reduced-motion: no-preference) {
+    :root {
+      --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+    }
+    html {
+      scroll-behavior: smooth;
+    }
+    .cursor {
+      animation: blink 1s steps(1) infinite;
+    }
+    .photo-ring,
+    .photo-orbit {
+      animation: spin 8s linear infinite;
+    }
+    .pulse {
+      animation: pulse 2s ease-in-out infinite;
+    }
+    .lang-overlay {
+      animation: fade-in 0.15s ease-out both;
+    }
+    .spinner {
+      animation: spin 0.8s linear infinite;
+    }
+    .shape {
+      animation: drift var(--dur, 25s) ease-in-out infinite alternate;
+    }
+
+    /* Levantar no hover usa a propriedade "translate" (e não "transform"),
+       para não brigar com a inclinação 3D, que usa "transform". */
+    .card {
+      transition:
+        translate 0.2s,
+        transform 0.55s cubic-bezier(0.34, 1.56, 0.64, 1), /* volta "de mola" ao sair */
+        border-color 0.2s,
+        box-shadow 0.2s;
+    }
+    .card:hover {
+      translate: 0 -3px;
+      border-color: var(--accent);
+      box-shadow: 0 8px 30px var(--accent-deep);
+    }
+
+    /* ----- Entrada do topo, ao carregar a página (~1.2s, sem precisar rolar) ----- */
+    .hero-pop {
+      animation: pop-in 0.6s var(--ease) both;
+    }
+    .hero-fade {
+      animation: fade-up 0.5s var(--ease) var(--delay, 0ms) both;
+    }
+    .hero-mask > span {
+      animation: mask-up 0.6s var(--ease) var(--delay, 0ms) both;
+    }
+
+    /* ----- Entradas ao rolar -----
+       O RevealOnScroll liga data-reveal no <html> e põe .is-visible em cada elemento
+       observado. Sem JavaScript, nada disso se aplica e tudo fica visível. */
+
+    /* Genérico: sobe e aparece. Usa opacity + translate, nunca transform. */
+    [data-reveal] .reveal {
+      opacity: 0;
+      translate: 0 24px;
+      transition:
+        opacity 0.5s var(--ease) var(--delay, 0ms),
+        translate 0.5s var(--ease) var(--delay, 0ms);
+    }
+
+    /* Títulos: o rótulo entra da esquerda, depois as palavras sobem pela máscara;
+       a palavra azul vem um pouco depois. */
+    [data-reveal] .heading-reveal .label {
+      opacity: 0;
+      translate: -24px 0;
+      transition: opacity 0.45s var(--ease), translate 0.45s var(--ease);
+    }
+    [data-reveal] .heading-reveal .mask > span {
+      translate: 0 110%;
+      transition: translate 0.6s var(--ease) 0.1s;
+    }
+    [data-reveal] .heading-reveal .mask-accent > span {
+      transition-delay: 0.22s;
+    }
+
+    /* Linha do tempo: a linha se desenha de cima para baixo; em cada item a bolinha
+       "estoura" (curva que passa de 1) e o cartão entra pela direita. */
+    [data-reveal] .timeline::before {
+      scale: 1 0;
+      transform-origin: top;
+      transition: scale 1s var(--ease);
+    }
+    [data-reveal] .timeline-item .timeline-dot {
+      scale: 0;
+      transition: scale 0.45s cubic-bezier(0.3, 1.8, 0.5, 1) 0.15s;
+    }
+    [data-reveal] .timeline-item .slide-in {
+      opacity: 0;
+      translate: 48px 0;
+      transition:
+        opacity 0.5s var(--ease) 0.2s,
+        translate 0.5s var(--ease) 0.2s;
+    }
+
+    /* Competências: o nome do grupo primeiro, depois os chips um a um (--i = posição). */
+    [data-reveal] .skill-group h3 {
+      opacity: 0;
+      translate: -12px 0;
+      transition: opacity 0.4s var(--ease), translate 0.4s var(--ease);
+    }
+    [data-reveal] .skill-group .chip {
+      opacity: 0;
+      scale: 0.9;
+      transition:
+        opacity 0.35s var(--ease) calc(120ms + var(--i) * 35ms),
+        scale 0.35s var(--ease) calc(120ms + var(--i) * 35ms);
+    }
+
+    /* Estado final comum a todas as entradas acima. */
+    [data-reveal] .reveal.is-visible,
+    [data-reveal] .heading-reveal.is-visible .label,
+    [data-reveal] .heading-reveal.is-visible .mask > span,
+    [data-reveal] .timeline-item.is-visible .slide-in,
+    [data-reveal] .skill-group.is-visible h3,
+    [data-reveal] .skill-group.is-visible .chip {
+      opacity: 1;
+      translate: none;
+      scale: none;
+    }
+    [data-reveal] .timeline.is-visible::before,
+    [data-reveal] .timeline-item.is-visible .timeline-dot {
+      scale: none;
+    }
+
+    @keyframes blink {
+      50% { opacity: 0; }
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    @keyframes pulse {
+      50% { transform: scale(1.6); opacity: 0.4; }
+    }
+    @keyframes drift {
+      from { translate: 0 0; rotate: 0deg; }
+      to { translate: 40px -60px; rotate: 90deg; }
+    }
+    /* Keyframes só com "from": a animação termina no estilo normal do elemento. */
+    @keyframes fade-in {
+      from { opacity: 0; }
+    }
+    @keyframes pop-in {
+      from { opacity: 0; scale: 0.6; }
+    }
+    @keyframes fade-up {
+      from { opacity: 0; translate: 0 16px; }
+    }
+    @keyframes mask-up {
+      from { translate: 0 110%; }
+    }
+  }
+
+  /* ----- Cartão 3D: só com mouse/trackpad e sem pedido de menos movimento ----- */
+  @media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
+    /* Enquanto o cursor está em cima, a inclinação segue rápido; ao sair, volta em 0.55s. */
+    .tilt.is-tilting {
+      transform: perspective(800px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)) scale(1.02);
+      transition:
+        translate 0.2s,
+        transform 0.1s ease-out,
+        border-color 0.2s,
+        box-shadow 0.2s;
+    }
+    /* Brilho que segue o cursor (::before) e borda que acende perto dele (::after). */
+    .tilt::before,
+    .tilt::after {
+      content: "";
+      position: absolute;
+      border-radius: inherit;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+    .tilt::before {
+      inset: 0;
+      background: radial-gradient(
+        320px circle at var(--mx, 50%) var(--my, 50%),
+        color-mix(in srgb, var(--accent) 14%, transparent),
+        transparent 65%
+      );
+    }
+    .tilt::after {
+      inset: -1px;
+      padding: 1px;
+      background: radial-gradient(
+        220px circle at var(--mx, 50%) var(--my, 50%),
+        var(--accent),
+        transparent 70%
+      );
+      /* Recorta o miolo: sobra só um anel de 1px (a borda). */
+      mask:
+        linear-gradient(#000 0 0) content-box,
+        linear-gradient(#000 0 0);
+      mask-composite: exclude;
+    }
+    .tilt.is-tilting::before,
+    .tilt.is-tilting::after {
+      opacity: 1;
+    }
+    /* Sombra azul um pouco mais forte embaixo do cartão inclinado. */
+    .tilt.is-tilting {
+      box-shadow: 0 18px 48px var(--accent-deep);
+    }
+    /* Detalhes que reagem ao hover do cartão: chips acendem e a seta anda. */
+    .tilt .chip,
+    .tilt .arrow {
+      transition: border-color 0.25s, color 0.25s, translate 0.25s var(--ease);
+    }
+    .tilt:hover .chip {
+      border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+      color: var(--fg);
+    }
+    .tilt:hover .arrow {
+      translate: 4px 0;
+    }
+  }
+}

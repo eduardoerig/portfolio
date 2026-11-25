@@ -1,0 +1,138 @@
+import type { Portfolio } from "@/lib/types";
+
+// Tradução em inglês do fixture.ts, para recrutadores. Mesmos ids, mesma ordem.
+// Nomes próprios (empresas, escolas, projetos) ficam como estão.
+export const fixturePortfolioEn: Portfolio = {
+  profile: {
+    name: "Eduardo Erig",
+    role: "IT Assistant · Full Stack Developer",
+    summary:
+      "I work as an IT Assistant at Colégio Evangélico Martin Luther, where I build internal systems, run the help desk and maintain hardware. I'm also co-founder and full stack developer at PrimoDev, where I build websites, custom systems and automations for small and medium-sized businesses. I enjoy taking a manual process and turning it into a system, from gathering requirements to delivery.",
+    openToWork: true,
+    email: "eduardoferig@gmail.com",
+    githubUrl: "https://github.com/eduardoerig",
+    linkedinUrl: "https://www.linkedin.com/in/eduardoerig",
+    photoPath: null,
+    cvPath: null,
+  },
+  projects: [
+    {
+      id: 1,
+      title: "Requests",
+      description:
+        "Institutional request management system: centralizes the school's requests and makes them easy to track.",
+      stack: ["PHP", "JavaScript", "MySQL"],
+      url: "https://github.com/eduardoerig/requests-institutional-management",
+      imagePath: null,
+      metric: null,
+    },
+    {
+      id: 2,
+      title: "Dolce Delícias",
+      description: "Website and online store for a bakery, built as a team for the college capstone project.",
+      stack: ["HTML", "CSS", "JavaScript", "Sanity"],
+      url: "https://github.com/eduardoerig/Dolce-Delicias",
+      imagePath: null,
+      metric: null,
+    },
+    {
+      id: 3,
+      title: "Instagram Automation",
+      description: "Plans, prepares, reviews, schedules and learns from PrimoDev's Instagram posts.",
+      stack: ["n8n", "AI agents", "Cloudflare Workers"],
+      url: null,
+      imagePath: null,
+      metric: "First Reel in the new format: 1,777 views (median: 37)",
+    },
+    {
+      id: 4,
+      title: "Surveying Services Management",
+      description:
+        "Management and organization of land surveying services: logging, tracking and standardizing information.",
+      stack: ["PHP", "MySQL"],
+      url: null,
+      imagePath: null,
+      metric: null,
+    },
+  ],
+  experiences: [
+    {
+      id: 1,
+      role: "IT Assistant",
+      company: "Colégio Evangélico Martin Luther",
+      location: "Mal. Cândido Rondon, PR, Brazil",
+      period: "2025 – present",
+      current: true,
+      bullets: [
+        "Build and maintain internal systems, such as Requests, which organizes the institution's requests.",
+        "Support users at the help desk and fix issues with computers, the network and equipment.",
+        "Support the IT department's routines, organizing and improving processes.",
+      ],
+    },
+    {
+      id: 2,
+      role: "Co-founder & Full Stack Developer",
+      company: "PrimoDev",
+      location: "Remote",
+      period: "Feb 2026 – present",
+      current: true,
+      bullets: [
+        "Build websites, custom systems and automations for small and medium-sized businesses.",
+        "Created the automation that runs PrimoDev's Instagram with n8n and AI agents.",
+      ],
+    },
+    {
+      id: 3,
+      role: "IT Administrative Assistant",
+      company: "Colégio Evangélico Martin Luther",
+      location: "Mal. Cândido Rondon, PR, Brazil",
+      period: "2024 – 2025",
+      current: false,
+      bullets: [
+        "Provided technical support, user assistance and equipment maintenance.",
+        "Took part in improving and developing internal systems.",
+      ],
+    },
+  ],
+  skills: [
+    { id: 1, name: "HTML", group: "Front-end", level: null },
+    { id: 2, name: "CSS", group: "Front-end", level: null },
+    { id: 3, name: "JavaScript", group: "Front-end", level: null },
+    { id: 4, name: "Bootstrap", group: "Front-end", level: null },
+    { id: 5, name: "React", group: "Front-end", level: "learning" },
+    { id: 6, name: "Next.js", group: "Front-end", level: "learning" },
+    { id: 7, name: "TypeScript", group: "Front-end", level: "learning" },
+    { id: 8, name: "PHP", group: "Back-end & data", level: "intermediate" },
+    { id: 9, name: "Node.js", group: "Back-end & data", level: "intermediate" },
+    { id: 10, name: "REST APIs", group: "Back-end & data", level: "intermediate" },
+    { id: 11, name: "MySQL", group: "Back-end & data", level: null },
+    { id: 12, name: "SQL", group: "Back-end & data", level: null },
+    { id: 13, name: "n8n", group: "Automation & AI", level: null },
+    { id: 14, name: "AI agents", group: "Automation & AI", level: null },
+    { id: 15, name: "Claude Code", group: "Automation & AI", level: null },
+    { id: 16, name: "Git", group: "Tools", level: null },
+    { id: 17, name: "GitHub", group: "Tools", level: null },
+    { id: 18, name: "VS Code", group: "Tools", level: null },
+    { id: 19, name: "Help desk", group: "Support & infrastructure", level: null },
+    { id: 20, name: "Hardware maintenance", group: "Support & infrastructure", level: null },
+    { id: 21, name: "OS formatting & installation", group: "Support & infrastructure", level: null },
+    { id: 22, name: "Cabling & Wi-Fi", group: "Support & infrastructure", level: null },
+    { id: 23, name: "Printers & peripherals", group: "Support & infrastructure", level: null },
+  ],
+  education: [
+    {
+      id: 1,
+      course: "Software Engineering",
+      school: "Faculdade Donaduzzi",
+      period: "Feb 2026 – Dec 2029",
+      note: "in progress",
+    },
+    {
+      id: 2,
+      course: "Systems Development Technician",
+      school: "Colégio Estadual Eron Domingues",
+      period: "2023 – 2025",
+      note: "Integrated with high school",
+    },
+  ],
+};
