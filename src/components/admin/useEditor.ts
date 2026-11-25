@@ -4,6 +4,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { FormState } from "@/app/(admin)/admin/actions";
 import type { Locale } from "@/i18n/locales";
 import { type Draft, type EditorKind, draftToFormData, rowToDraft } from "@/lib/adminDraft";
+import { fileUrl } from "@/lib/fileUrl";
+import { uploadFile } from "@/lib/uploadClient";
 import { useAdminStatus } from "./AdminStatus";
 
 type Options = {
@@ -26,6 +28,8 @@ export function useEditor({ kind, row, save, onSaved }: Options) {
   const [saved, setSaved] = useState<Record<string, File>>({}); // enviados e salvos: a prévia não volta à imagem antiga
   const [dirty, setLocalDirty] = useState(false);
   const busy = useRef(false); // o estado só muda no próximo render: o ref barra o segundo clique
+  const uploaded = useRef(new WeakMap<File, string>()); // arquivo já enviado não sobe de novo num novo Salvar
+  const [uploading, setUploading] = useState(false);
 
   const edits = useRef(0); // conta alterações: o envio só limpa o "não salvo" se nada mudou durante ele
   const touch = useCallback(() => {
@@ -56,7 +60,31 @@ export function useEditor({ kind, row, save, onSaved }: Options) {
     const at = edits.current;
     let leaving = false;
     try {
-      const result = await save(draftToFormData(draft, files, removed));
+      // 1) Arquivos novos vão direto ao armazenamento; se algum falhar, nada é salvo e nada se perde.
+      const keys: Record<string, string> = {};
+      const uploadErrors: Record<string, string> = {};
+      const pendingFiles = Object.entries(files).filter((e): e is [string, File] => e[1] instanceof File);
+      if (pendingFiles.length) setUploading(true);
+      for (const [name, file] of pendingFiles) {
+        const known = uploaded.current.get(file);
+        if (known) {
+          keys[name] = known;
+          continue;
+        }
+        const up = await uploadFile(file, name === "cv" ? "pdf" : "image");
+        if (up.ok) {
+          uploaded.current.set(file, up.key);
+          keys[name] = up.key;
+        } else uploadErrors[name] = up.error;
+      }
+      setUploading(false);
+      if (Object.keys(uploadErrors).length) {
+        setErrors(uploadErrors);
+        setFailed(false);
+        return;
+      }
+      // 2) O formulário leva só as chaves.
+      const result = await save(draftToFormData(draft, keys, removed));
       const errs = result.errors ?? {};
       setErrors(errs);
       // erro só no outro idioma: vai para ele, senão o campo com a mensagem fica escondido
@@ -82,6 +110,7 @@ export function useEditor({ kind, row, save, onSaved }: Options) {
         onSaved();
       }
     } catch {
+      setUploading(false);
       setFailed(true); // rascunho, arquivos e etiquetas ficam como estão
     } finally {
       if (!leaving) {
@@ -124,10 +153,10 @@ export function useEditor({ kind, row, save, onSaved }: Options) {
   const shown = { ...saved, ...files };
   const currentUrl = (name: string) => {
     const path = String(draft[`${name}Path`] ?? "") || (removed.includes(name) ? String(row?.[`${name}Path`] ?? "") : "");
-    return path || null;
+    return fileUrl(path);
   };
 
-  return { draft, set, touch, locale, setLocale, files, shown, currentUrl, setFile, removed, setRemoved, errors, failed, pending, submit };
+  return { draft, set, touch, locale, setLocale, files, shown, currentUrl, setFile, removed, setRemoved, errors, failed, pending, uploading, submit };
 }
 
 export type Editor = ReturnType<typeof useEditor>;

@@ -1,4 +1,5 @@
 import { parseList } from "@/lib/lists";
+import { fileUrl } from "@/lib/fileUrl";
 import { toLevel } from "@/lib/localize";
 import type { Kind, Row } from "@/lib/tables";
 import SkillIcon from "@/components/icons/SkillIcon";
@@ -14,9 +15,9 @@ export default function ItemCard({ kind, row, href }: { kind: Kind; row: Row; hr
   return (
     <GuardedLink href={href} className={`card flex min-w-0 flex-1 items-center gap-3 ${row.visible ? "" : "opacity-50"}`}>
       {kind === "project" &&
-        (row.imagePath ? (
+        (fileUrl(s("imagePath")) ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={s("imagePath")} alt="" className="h-12 w-16 shrink-0 rounded object-cover" />
+          <img src={fileUrl(s("imagePath")) ?? ""} alt="" className="h-12 w-16 shrink-0 rounded object-cover" />
         ) : (
           <span className="h-12 w-16 shrink-0 rounded border border-[var(--border)]" aria-hidden="true" />
         ))}

@@ -1,4 +1,5 @@
 import { db } from "@/lib/db";
+import { fileUrl } from "@/lib/fileUrl";
 import { pick, pickList, pickNull, toLevel } from "@/lib/localize";
 import { ORDER } from "@/lib/tables";
 import type { Locale } from "@/i18n/locales";
@@ -25,8 +26,8 @@ export async function getPortfolio(locale: Locale): Promise<Portfolio> {
       email: profile.email,
       githubUrl: profile.githubUrl,
       linkedinUrl: profile.linkedinUrl,
-      photoPath: profile.photoPath,
-      cvPath: profile.cvPath,
+      photoPath: fileUrl(profile.photoPath),
+      cvPath: fileUrl(profile.cvPath),
     },
     projects: projects.map((p) => ({
       id: p.id,
@@ -34,7 +35,7 @@ export async function getPortfolio(locale: Locale): Promise<Portfolio> {
       description: pick(locale, p.description, p.descriptionEn),
       stack: pickList(locale, p.stack, p.stackEn),
       url: p.url,
-      imagePath: p.imagePath,
+      imagePath: fileUrl(p.imagePath),
       metric: pickNull(locale, p.metric, p.metricEn),
     })),
     experiences: experiences.map((e) => ({

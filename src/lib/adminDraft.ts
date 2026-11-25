@@ -1,4 +1,5 @@
 import type { Locale } from "@/i18n/locales";
+import { fileUrl } from "@/lib/fileUrl";
 import { parseList } from "@/lib/lists";
 import { pick, pickList, pickNull, toLevel } from "@/lib/localize";
 import type { Kind } from "@/lib/tables";
@@ -33,14 +34,15 @@ export function rowToDraft(row: Record<string, unknown> | null, kind: EditorKind
 }
 
 // Mesmas chaves que as server actions leem: lista em linhas, checkbox "on"/ausente, remove_<campo>.
-export function draftToFormData(draft: Draft, files: Record<string, File | null>, removed: string[]): FormData {
+// keys: chave já guardada no armazenamento para cada campo de arquivo (o arquivo em si nunca vai junto).
+export function draftToFormData(draft: Draft, keys: Record<string, string>, removed: string[]): FormData {
   const form = new FormData();
   for (const [k, v] of Object.entries(draft)) {
     if (v === true) form.set(k, "on");
     else if (typeof v === "string") form.set(k, v);
     else if (Array.isArray(v)) form.set(k, v.join("\n"));
   }
-  for (const [k, f] of Object.entries(files)) if (f) form.set(k, f);
+  for (const [k, key] of Object.entries(keys)) form.set(`${k}Key`, key);
   for (const name of removed) form.set(`remove_${name}`, "on");
   return form;
 }
@@ -63,8 +65,8 @@ export function profilePreview(d: Draft, locale: Locale, photoUrl?: string | nul
     email: str(d, "email"),
     githubUrl: str(d, "githubUrl"),
     linkedinUrl: str(d, "linkedinUrl"),
-    photoPath: photoUrl ?? strOrNull(d, "photoPath"),
-    cvPath: strOrNull(d, "cvPath"),
+    photoPath: photoUrl ?? fileUrl(strOrNull(d, "photoPath")),
+    cvPath: fileUrl(strOrNull(d, "cvPath")),
   };
 }
 
@@ -80,7 +82,7 @@ export function itemPreview(kind: Kind, d: Draft, locale: Locale, imageUrl?: str
   const base = { id: id(d) };
   switch (kind) {
     case "project":
-      return { ...base, title: p("title"), description: p("description"), stack: pl("stack"), url: strOrNull(d, "url"), imagePath: imageUrl ?? strOrNull(d, "imagePath"), metric: pn("metric") };
+      return { ...base, title: p("title"), description: p("description"), stack: pl("stack"), url: strOrNull(d, "url"), imagePath: imageUrl ?? fileUrl(strOrNull(d, "imagePath")), metric: pn("metric") };
     case "experience":
       return { ...base, role: p("role"), company: str(d, "company"), location: p("location"), period: p("period"), bullets: pl("bullets"), current: bool(d, "current") };
     case "skill":

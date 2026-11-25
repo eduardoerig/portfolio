@@ -12,15 +12,22 @@ vi.mock("next/navigation", () => ({
 }));
 const saveItem = vi.fn();
 const updateProfile = vi.fn();
+const requestUpload = vi.fn();
 vi.mock("@/app/(admin)/admin/actions", () => ({
   saveItem: (...a: unknown[]) => saveItem(...a),
   updateProfile: (...a: unknown[]) => updateProfile(...a),
+  requestUpload: (...a: unknown[]) => requestUpload(...a),
 }));
+const KEY = "0b1e7f5c-1d2a-4c3b-9e8f-7a6b5c4d3e2f.png";
 
 beforeEach(() => {
   vi.clearAllMocks();
   saveItem.mockResolvedValue({ ok: true });
   updateProfile.mockResolvedValue({ ok: true });
+  requestUpload.mockResolvedValue({ ok: true, key: KEY, url: "https://r2.test/put" });
+  vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(null, { status: 200 })));
+  URL.createObjectURL = vi.fn(() => "blob:t");
+  URL.revokeObjectURL = vi.fn();
 });
 afterEach(cleanup);
 
@@ -156,13 +163,53 @@ describe("não perder o que foi digitado", () => {
   });
 });
 
+describe("envio de arquivos antes de salvar", () => {
+  const pick = () =>
+    fireEvent.change(screen.getByLabelText("Foto"), { target: { files: [new File([new Uint8Array(10)], "f.png", { type: "image/png" })] } });
+
+  it("envio que falha não salva, mostra erro no campo e mantém o texto", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("rede")));
+    wrap(<ProfileEditor row={profileRow} />);
+    type("Nome", "Beatriz Lima");
+    pick();
+    fireEvent.click(screen.getByRole("button", { name: "Salvar" }));
+    expect(await screen.findByText("Falha ao enviar o arquivo")).toBeTruthy();
+    expect(updateProfile).not.toHaveBeenCalled();
+    expect((screen.getByLabelText("Nome") as HTMLInputElement).value).toBe("Beatriz Lima");
+  });
+
+  it("envio OK manda só a chave para a action", async () => {
+    wrap(<ProfileEditor row={profileRow} />);
+    pick();
+    fireEvent.click(screen.getByRole("button", { name: "Salvar" }));
+    await waitFor(() => expect(updateProfile).toHaveBeenCalled());
+    const fd = updateProfile.mock.calls[0][0] as FormData;
+    expect(fd.get("photoKey")).toBe(KEY);
+    expect(fd.has("photo")).toBe(false);
+  });
+
+  it("depois de erro de validação, salvar de novo não reenvia o mesmo arquivo", async () => {
+    updateProfile.mockResolvedValueOnce({ errors: { email: "E-mail inválido" } });
+    wrap(<ProfileEditor row={profileRow} />);
+    pick();
+    fireEvent.click(screen.getByRole("button", { name: "Salvar" }));
+    await screen.findByText("E-mail inválido");
+    fireEvent.click(screen.getByRole("button", { name: "Salvar" }));
+    await waitFor(() => expect(updateProfile).toHaveBeenCalledTimes(2));
+    expect(requestUpload).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe("prévia fiel ao site", () => {
-  const withImage = { id: 3, title: "Pedidos", titleEn: "", description: "d", descriptionEn: "", stack: "[]", stackEn: "[]", url: "", metric: "", metricEn: "", imagePath: "/uploads/a.png", visible: true };
+  const withImage = { id: 3, title: "Pedidos", titleEn: "", description: "d", descriptionEn: "", stack: "[]", stackEn: "[]", url: "", metric: "", metricEn: "", imagePath: KEY, visible: true };
+  beforeEach(() => vi.stubEnv("NEXT_PUBLIC_FILES_URL", "https://pub.test"));
+  afterEach(() => vi.unstubAllEnvs());
   const previewImgs = (c: HTMLElement) => c.querySelectorAll("aside img").length;
 
   it("marcar remover tira a imagem da prévia na hora", () => {
     const { container } = wrap(<ItemEditor kind="project" row={withImage} base="/admin/projetos" />);
     expect(previewImgs(container)).toBe(1);
+    expect(container.querySelector("aside img")?.getAttribute("src")).toBe(`https://pub.test/${KEY}`);
     fireEvent.click(screen.getByLabelText("remover"));
     expect(previewImgs(container)).toBe(0);
   });

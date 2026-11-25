@@ -1,4 +1,5 @@
 import { cookies } from "next/headers";
+import { fileUrl } from "@/lib/fileUrl";
 import AdminHeader from "@/components/admin/AdminHeader";
 import { AdminStatusProvider } from "@/components/admin/AdminStatus";
 import Sidebar from "@/components/admin/Sidebar";
@@ -22,7 +23,7 @@ export default async function AdminChrome({ children }: { children: React.ReactN
   return (
     <AdminStatusProvider>
       <div className="flex min-h-screen flex-col">
-        <AdminHeader name={profile?.name ?? "Admin"} photoPath={profile?.photoPath ?? null} />
+        <AdminHeader name={profile?.name ?? "Admin"} photoPath={fileUrl(profile?.photoPath)} />
         <div className="flex flex-1">
           <Sidebar counts={{ projetos, experiencias, competencias, formacao }} />
           <main className="mx-auto flex w-full max-w-6xl flex-col gap-4 p-6">{children}</main>

@@ -14,7 +14,7 @@ export default function EditorFrame({ title, editor, preview, cancel, children }
   cancel?: ReactNode;
   children: ReactNode;
 }) {
-  const { draft, locale, setLocale, failed, pending, submit, errors } = editor;
+  const { draft, locale, setLocale, failed, pending, uploading, submit, errors } = editor;
   // Ponto no EN quando há texto em português sem a tradução.
   const empty = (v: unknown) => (Array.isArray(v) ? v.length === 0 : !v);
   const missing = Object.entries(draft).some(([k, v]) => k.endsWith("En") && empty(v) && !empty(draft[k.slice(0, -2)]));
@@ -56,7 +56,7 @@ export default function EditorFrame({ title, editor, preview, cancel, children }
         {failed && <ActionError />}
         {Object.keys(errors).length > 0 && <p role="alert" className="text-sm text-[var(--danger)]">Corrija os campos destacados.</p>}
         <div className="flex items-center gap-3">
-          <button type="submit" disabled={pending} className="btn btn-primary">{pending ? "Salvando..." : "Salvar"}</button>
+          <button type="submit" disabled={pending} className="btn btn-primary">{uploading ? "Enviando..." : pending ? "Salvando..." : "Salvar"}</button>
           {cancel}
         </div>
       </form>

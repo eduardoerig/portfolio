@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { draftToFormData, itemPreview, profilePreview, rowToDraft, type Draft } from "@/lib/adminDraft";
 
 const project = (o: Draft = {}): Draft => ({
@@ -26,7 +26,7 @@ describe("rowToDraft", () => {
 
 describe("draftToFormData", () => {
   it("usa as mesmas chaves das actions", () => {
-    const f = draftToFormData({ id: "", stack: ["A", "B"], visible: true, current: false }, { image: null }, ["image"]);
+    const f = draftToFormData({ id: "", stack: ["A", "B"], visible: true, current: false }, {}, ["image"]);
     expect(f.get("stack")).toBe("A\nB");
     expect(f.get("visible")).toBe("on");
     expect(f.has("current")).toBe(false);
@@ -36,13 +36,20 @@ describe("draftToFormData", () => {
   it("lista vazia vira texto vazio", () => {
     expect(draftToFormData({ stack: [] }, {}, []).get("stack")).toBe("");
   });
-  it("envia o arquivo na sua chave", () => {
-    const file = new File(["x"], "a.png");
-    expect(draftToFormData({}, { image: file }, []).get("image")).toBeInstanceOf(File);
+  it("envia a chave do arquivo guardado em <campo>Key, nunca o arquivo", () => {
+    const f = draftToFormData({}, { image: "0b1e7f5c-1d2a-4c3b-9e8f-7a6b5c4d3e2f.png" }, []);
+    expect(f.get("imageKey")).toBe("0b1e7f5c-1d2a-4c3b-9e8f-7a6b5c4d3e2f.png");
+    expect(f.has("image")).toBe(false);
   });
 });
 
 describe("previews", () => {
+  it("chave guardada vira URL pública na prévia", () => {
+    vi.stubEnv("NEXT_PUBLIC_FILES_URL", "https://pub.test");
+    expect(profilePreview({ name: "A", photoPath: "0b1e7f5c-1d2a-4c3b-9e8f-7a6b5c4d3e2f.png" }, "pt").photoPath).toBe("https://pub.test/0b1e7f5c-1d2a-4c3b-9e8f-7a6b5c4d3e2f.png");
+    expect(itemPreview("project", { title: "T", imagePath: "0b1e7f5c-1d2a-4c3b-9e8f-7a6b5c4d3e2f.png" }, "pt").imagePath).toBe("https://pub.test/0b1e7f5c-1d2a-4c3b-9e8f-7a6b5c4d3e2f.png");
+    vi.unstubAllEnvs();
+  });
   it("cai no português sem inglês e usa o inglês quando existe", () => {
     const pt = itemPreview("project", project(), "en");
     expect(pt.title).toBe("Pedidos");
@@ -66,7 +73,7 @@ describe("previews", () => {
   });
   it("photoUrl substitui photoPath", () => {
     const d = rowToDraft(null, "profile");
-    expect(profilePreview({ ...d, photoPath: "/u/a.png" }, "pt").photoPath).toBe("/u/a.png");
+    expect(profilePreview({ ...d, photoPath: "/u/a.png" }, "pt").photoPath).toBeNull(); // caminho que não é chave nossa
     expect(profilePreview(d, "pt", "blob:x").photoPath).toBe("blob:x");
   });
 });

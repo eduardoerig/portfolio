@@ -36,6 +36,15 @@ describe("getPortfolio", () => {
     expect(projects[0].stack).toEqual(["PHP", "JavaScript", "MySQL"]);
   });
 
+  it("chave guardada vira URL pública; caminho antigo vira null", async () => {
+    process.env.NEXT_PUBLIC_FILES_URL = "https://pub.test";
+    await db.profile.update({ where: { id: 1 }, data: { photoPath: "0b1e7f5c-1d2a-4c3b-9e8f-7a6b5c4d3e2f.png", cvPath: "/files/velho.pdf" } });
+    const { profile } = await getPortfolio("pt");
+    expect(profile.photoPath).toBe("https://pub.test/0b1e7f5c-1d2a-4c3b-9e8f-7a6b5c4d3e2f.png");
+    expect(profile.cvPath).toBeNull();
+    await db.profile.update({ where: { id: 1 }, data: { photoPath: null, cvPath: null } });
+  });
+
   it("esconde itens com visible = false", async () => {
     await db.project.update({ where: { id: 2 }, data: { visible: false } });
     expect((await getPortfolio("pt")).projects).toHaveLength(3);
