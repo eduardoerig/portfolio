@@ -129,12 +129,14 @@ const refresh = () => {
 // existe no armazenamento com tipo e tamanho permitidos.
 
 type Slot = { field: string; column: string; kind: UploadKind; current: string | null };
-type UploadResult = { errors: Record<string, string>; created: string[] } | { changes: Record<string, string | null>; created: string[]; old: string[] };
+type UploadResult = { errors: Record<string, string>; created: string[] } | { changes: Record<string, string | null>; created: string[] };
 
 // Confere cada chave enviada. Marcar "remover" (remove_<campo>) limpa o campo.
 async function readUploads(form: FormData, slots: Slot[]): Promise<UploadResult> {
   const errors: Record<string, string> = {};
-  const created: string[] = []; // chaves válidas que existem no armazenamento (apagadas se o salvamento falhar)
+  // Só o que foi recusado (tipo/tamanho) é apagado. Chave válida nunca: pode ser a imagem antiga que o Desfazer
+  // reanexou; se o salvamento falhar, "Limpar arquivos soltos" apaga depois de 24 h.
+  const created: string[] = [];
   const changes: Record<string, string | null> = {};
   for (const slot of slots) {
     const key = form.get(`${slot.field}Key`);
@@ -154,24 +156,20 @@ async function readUploads(form: FormData, slots: Slot[]): Promise<UploadResult>
       errors[slot.field] = "Arquivo não encontrado";
       continue;
     }
-    created.push(key);
     // Mesmas regras de antes, agora sobre o que de fato está guardado.
     const check = validateUpload({ type: stored.contentType, size: stored.size, name: key }, slot.kind);
     if (check.ok) changes[slot.column] = key;
-    else errors[slot.field] = check.error;
+    else {
+      errors[slot.field] = check.error;
+      created.push(key);
+    }
   }
   if (Object.keys(errors).length) return { errors, created };
 
-  const old: string[] = [];
   for (const slot of slots) {
-    if (slot.column in changes) {
-      if (slot.current) old.push(slot.current); // trocado
-    } else if (form.get(`remove_${slot.field}`) === "on" && slot.current) {
-      changes[slot.column] = null;
-      old.push(slot.current);
-    }
+    if (!(slot.column in changes) && form.get(`remove_${slot.field}`) === "on" && slot.current) changes[slot.column] = null;
   }
-  return { changes, created, old };
+  return { changes, created };
 }
 
 async function isReferenced(key: string): Promise<boolean> {
@@ -185,16 +183,6 @@ async function isReferenced(key: string): Promise<boolean> {
 // Só apaga o que é nosso; caminhos antigos (/files/...) não estão no armazenamento.
 const removeStored = (keys: string[]) => Promise.all(keys.filter(isStoredKey).map(deleteObject));
 
-// Os arquivos antigos só somem depois que o banco aceitou a mudança; se o banco falhar, some o novo.
-async function commitUploads(up: { created: string[]; old: string[] }, saveToDb: () => Promise<unknown>) {
-  try {
-    await saveToDb();
-  } catch (e) {
-    await removeStored(up.created);
-    throw e;
-  }
-  await removeStored(up.old);
-}
 
 // ---------- Actions (todas começam com requireAdmin) ----------
 
@@ -247,7 +235,7 @@ export async function updateProfile(form: FormData): Promise<FormState> {
     await removeStored(up.created); // o formulário falhou: não deixa arquivo órfão
     return { errors };
   }
-  await commitUploads(up, () => db.profile.update({ where: { id: 1 }, data: { ...parsed.data, ...up.changes } }));
+  await db.profile.update({ where: { id: 1 }, data: { ...parsed.data, ...up.changes } });
   refresh();
   return { ok: true };
 }
@@ -274,19 +262,17 @@ export async function saveItem(kind: Kind, form: FormData): Promise<FormState> {
 
   const data: Record<string, unknown> = { ...parsed.data, ...up.changes };
   if (id) {
-    await commitUploads(up, () => t.update({ where: { id }, data }));
+    await t.update({ where: { id }, data });
   } else {
     // Os ids não são autoincrementais (o seed fixa os valores): próximo = maior + 1, e vai para o fim da lista.
     const rows = await t.findMany({ orderBy: ORDER });
-    await commitUploads(up, () =>
-      t.create({
-        data: {
-          ...data,
-          id: Math.max(0, ...rows.map((r) => r.id)) + 1,
-          order: Math.max(-1, ...rows.map((r) => r.order)) + 1,
-        },
-      }),
-    );
+    await t.create({
+      data: {
+        ...data,
+        id: Math.max(0, ...rows.map((r) => r.id)) + 1,
+        order: Math.max(-1, ...rows.map((r) => r.order)) + 1,
+      },
+    });
   }
   refresh();
   return { ok: true };

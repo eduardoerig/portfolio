@@ -253,7 +253,7 @@ describe("uploads nas actions (por chave)", () => {
     }
   });
 
-  it("salva a foto pela chave; a troca apaga a antiga; currículo enviado é ignorado", async () => {
+  it("salva a foto pela chave; a troca mantém a antiga e o Desfazer a reanexa; currículo enviado é ignorado", async () => {
     const photo = put("png", "image/png");
     const cv = put("pdf", "application/pdf");
     expect((await actions.updateProfile(form({ ...base, photoKey: photo, cvKey: cv }))).errors).toBeUndefined();
@@ -263,11 +263,16 @@ describe("uploads nas actions (por chave)", () => {
     const photo2 = put("webp", "image/webp");
     await actions.updateProfile(form({ ...base, photoKey: photo2 }));
     expect((await db.profile.findUniqueOrThrow({ where: { id: 1 } })).photoPath).toBe(photo2);
-    expect(bucket.has(photo)).toBe(false);
+    expect(bucket.has(photo)).toBe(true);
+
+    // desfazer: reenviar a chave antiga reanexa o arquivo
+    expect((await actions.updateProfile(form({ ...base, photoKey: photo }))).errors).toBeUndefined();
+    expect((await db.profile.findUniqueOrThrow({ where: { id: 1 } })).photoPath).toBe(photo);
 
     await actions.updateProfile(form({ ...base, remove_photo: "on" }));
     expect((await db.profile.findUniqueOrThrow({ where: { id: 1 } })).photoPath).toBeNull();
-    expect(bucket.has(photo2)).toBe(false);
+    expect(bucket.has(photo)).toBe(true);
+    expect(bucket.has(photo2)).toBe(true);
   });
 
   it("salva os campos do currículo; inglês vazio vira null", async () => {
@@ -308,11 +313,12 @@ describe("uploads nas actions (por chave)", () => {
     expect(bucket.has(big)).toBe(false);
   });
 
-  it("formulário inválido apaga o objeto recém-enviado", async () => {
+  // Com o salvar sozinho, a chave pode ser uma imagem antiga reanexada pelo Desfazer: apagar perderia a imagem.
+  it("formulário inválido mantém o objeto válido (a limpeza de 24 h cuida dos soltos)", async () => {
     const photo = put("png", "image/png");
     const r = await actions.updateProfile(form({ ...base, email: "xx", photoKey: photo }));
     expect(r.errors?.email).toBeTruthy();
-    expect(bucket.has(photo)).toBe(false);
+    expect(bucket.has(photo)).toBe(true);
   });
 
   it("chave que já está em uso não é apagada nem duplicada", async () => {
@@ -337,13 +343,13 @@ describe("uploads nas actions (por chave)", () => {
     expect((await db.profile.findUniqueOrThrow({ where: { id: 1 } })).photoPath).toBeNull();
   });
 
-  it("imagem de projeto: salva pela chave, remover e excluir apagam do bucket", async () => {
+  it("imagem de projeto: salva pela chave, remover mantém o arquivo; excluir apaga", async () => {
     const img = put("jpg", "image/jpeg");
     await actions.saveItem("project", form({ id: "1", title: "Requests", description: "D", imageKey: img }));
     expect((await db.project.findUniqueOrThrow({ where: { id: 1 } })).imagePath).toBe(img);
     await actions.saveItem("project", form({ id: "1", title: "Requests", description: "D", remove_image: "on" }));
     expect((await db.project.findUniqueOrThrow({ where: { id: 1 } })).imagePath).toBeNull();
-    expect(bucket.has(img)).toBe(false);
+    expect(bucket.has(img)).toBe(true);
 
     const img2 = put("png", "image/png");
     await actions.saveItem("project", form({ id: "2", title: "Dolce", description: "D", imageKey: img2 }));
