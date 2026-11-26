@@ -7,14 +7,15 @@ import TagInput from "./TagInput";
 import type { Editor } from "./useEditor";
 
 // Esquerda: formulário; direita: prévia (embaixo do formulário abaixo de lg).
-export default function EditorFrame({ title, editor, preview, cancel, children }: {
+export default function EditorFrame({ title, editor, autosave, preview, cancel, children }: {
   title: string;
   editor: Editor;
+  autosave: boolean;
   preview: ReactNode;
   cancel?: ReactNode;
   children: ReactNode;
 }) {
-  const { draft, locale, setLocale, failed, pending, uploading, submit, errors } = editor;
+  const { draft, locale, setLocale, failed, pending, uploading, submit, flush, errors, status, undo } = editor;
   // Ponto no EN quando há texto em português sem a tradução.
   const empty = (v: unknown) => (Array.isArray(v) ? v.length === 0 : !v);
   const missing = Object.entries(draft).some(([k, v]) => k.endsWith("En") && empty(v) && !empty(draft[k.slice(0, -2)]));
@@ -25,7 +26,7 @@ export default function EditorFrame({ title, editor, preview, cancel, children }
       <form
         onSubmit={(e) => {
           e.preventDefault();
-          void submit();
+          void (autosave ? flush() : submit());
         }}
         className="card flex flex-col gap-4"
       >
@@ -53,10 +54,24 @@ export default function EditorFrame({ title, editor, preview, cancel, children }
           </div>
         </div>
         {children}
-        {failed && <ActionError />}
+        {(failed || status === "error") && <ActionError />}
         {Object.keys(errors).length > 0 && <p role="alert" className="text-sm text-[var(--danger)]">Corrija os campos destacados.</p>}
         <div className="flex items-center gap-3">
-          <button type="submit" disabled={pending} className="btn btn-primary">{uploading ? "Enviando..." : pending ? "Salvando..." : "Salvar"}</button>
+          {autosave ? (
+            <div aria-live="polite" className="flex items-center gap-2 text-sm">
+              {(status === "waiting" || status === "saving") && <span>Salvando…</span>}
+              {status === "saved" && (
+                <>
+                  <span>Salvo ✓</span>
+                  {undo && <button type="button" onClick={undo} className="btn">Desfazer</button>}
+                </>
+              )}
+              {status === "invalid" && <span className="text-[var(--danger)]">Corrija os campos destacados</span>}
+              {status === "error" && <button type="button" onClick={() => void submit()} className="btn">Tentar de novo</button>}
+            </div>
+          ) : (
+            <button type="submit" disabled={pending} className="btn btn-primary">{uploading ? "Enviando..." : pending ? "Salvando..." : "Criar"}</button>
+          )}
           {cancel}
         </div>
       </form>

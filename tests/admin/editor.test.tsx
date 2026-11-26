@@ -29,42 +29,65 @@ beforeEach(() => {
   URL.createObjectURL = vi.fn(() => "blob:t");
   URL.revokeObjectURL = vi.fn();
 });
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  vi.unstubAllEnvs();
+  vi.useRealTimers();
+});
 
 const profileRow = {
   id: 1, name: "Ana", role: "Desenvolvedora", roleEn: "Developer", summary: "Resumo", summaryEn: "",
   email: "a@x.dev", githubUrl: "https://g", linkedinUrl: "https://l", openToWork: false, photoPath: null, cvPath: null,
   fullName: null, location: null, locationEn: null, phone: null, cvClosing: null, cvClosingEn: null,
 };
+const project = { id: 3, title: "Pedidos", titleEn: "", description: "d", descriptionEn: "", stack: '["PHP"]', stackEn: "[]", url: "", metric: "", metricEn: "", imagePath: null, visible: true };
+const withImage = { ...project, stack: "[]", imagePath: KEY };
 const wrap = (ui: React.ReactNode) => render(<AdminStatusProvider>{ui}</AdminStatusProvider>);
 const type = (label: string, value: string) => fireEvent.change(screen.getByLabelText(label), { target: { value } });
+// avança o debounce do autosave (timers falsos)
+const wait = (ms = 800) => act(async () => void (await vi.advanceTimersByTimeAsync(ms)));
+const pickFile = (label: string) =>
+  fireEvent.change(screen.getByLabelText(label), { target: { files: [new File([new Uint8Array(10)], "f.png", { type: "image/png" })] } });
 
 describe("ProfileEditor", () => {
-  it("digitar atualiza a prévia sem chamar a action", () => {
+  it("digitar atualiza a prévia e grava sozinho depois de 800 ms", async () => {
+    vi.useFakeTimers();
     wrap(<ProfileEditor row={profileRow} />);
     type("Nome", "Beatriz Lima");
     expect(screen.getAllByText(/Beatriz/).length).toBeGreaterThan(0);
     expect(updateProfile).not.toHaveBeenCalled();
+    await wait();
+    expect(updateProfile).toHaveBeenCalledTimes(1);
+    expect((updateProfile.mock.calls[0][0] as FormData).get("name")).toBe("Beatriz Lima");
+    expect(refresh).toHaveBeenCalled();
+    expect(screen.getByText("Salvo ✓")).toBeTruthy();
   });
 
-  it("Ctrl+S salva uma vez com o valor digitado", async () => {
+  it("Ctrl+S grava na hora, uma vez", async () => {
     wrap(<ProfileEditor row={profileRow} />);
     type("Nome", "Beatriz Lima");
     const ev = new KeyboardEvent("keydown", { key: "s", ctrlKey: true, cancelable: true });
     await act(async () => void window.dispatchEvent(ev));
     expect(ev.defaultPrevented).toBe(true);
-    expect(updateProfile).toHaveBeenCalledTimes(1);
-    expect((updateProfile.mock.calls[0][0] as FormData).get("name")).toBe("Beatriz Lima");
-    expect(refresh).toHaveBeenCalled();
+    await waitFor(() => expect(updateProfile).toHaveBeenCalledTimes(1));
   });
 
-  it("se a action lança, mostra o erro e mantém o texto", async () => {
-    updateProfile.mockRejectedValue(new Error("x"));
+  it("se a action lança, mostra o erro e 'Tentar de novo', e mantém o texto", async () => {
+    updateProfile.mockRejectedValueOnce(new Error("x"));
+    vi.useFakeTimers();
     wrap(<ProfileEditor row={profileRow} />);
     type("Nome", "Beatriz Lima");
-    fireEvent.click(screen.getByRole("button", { name: "Salvar" }));
-    expect((await screen.findAllByRole("alert")).length).toBeGreaterThan(0);
+    await wait();
+    expect(screen.getAllByRole("alert").length).toBeGreaterThan(0);
     expect((screen.getByLabelText("Nome") as HTMLInputElement).value).toBe("Beatriz Lima");
+    fireEvent.click(screen.getByRole("button", { name: "Tentar de novo" }));
+    await wait(0);
+    expect(updateProfile).toHaveBeenCalledTimes(2);
+  });
+
+  it("não tem botão Salvar", () => {
+    wrap(<ProfileEditor row={profileRow} />);
+    expect(screen.queryByRole("button", { name: "Salvar" })).toBeNull();
   });
 
   it("tem os campos do currículo, links para os PDFs e nenhum upload de PDF", () => {
@@ -89,80 +112,134 @@ describe("ProfileEditor", () => {
     expect(role.value).toBe("Developer");
     expect(role.placeholder).toBe("Desenvolvedora");
   });
+
+  it("escolher a foto envia e grava na hora só com a chave", async () => {
+    wrap(<ProfileEditor row={profileRow} />);
+    pickFile("Foto");
+    await waitFor(() => expect(updateProfile).toHaveBeenCalled());
+    const fd = updateProfile.mock.calls[0][0] as FormData;
+    expect(fd.get("photoKey")).toBe(KEY);
+    expect(fd.has("photo")).toBe(false);
+  });
+
+  it("envio que falha não grava e mostra erro no campo", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("rede")));
+    wrap(<ProfileEditor row={profileRow} />);
+    pickFile("Foto");
+    expect(await screen.findByText("Falha ao enviar o arquivo")).toBeTruthy();
+    expect(updateProfile).not.toHaveBeenCalled();
+  });
+
+  it("remover a foto grava na hora", async () => {
+    vi.stubEnv("NEXT_PUBLIC_FILES_URL", "https://pub.test");
+    wrap(<ProfileEditor row={{ ...profileRow, photoPath: KEY }} />);
+    fireEvent.click(screen.getByRole("button", { name: "Remover" }));
+    await waitFor(() => expect(updateProfile).toHaveBeenCalled());
+    expect((updateProfile.mock.calls[0][0] as FormData).get("remove_photo")).toBe("on");
+  });
 });
 
-describe("ItemEditor", () => {
-  const project = { id: 3, title: "Pedidos", titleEn: "", description: "d", descriptionEn: "", stack: '["PHP"]', stackEn: "[]", url: "", metric: "", metricEn: "", imagePath: null, visible: true };
-
-  it("item novo volta para a lista", async () => {
-    wrap(<ItemEditor kind="project" row={null} base="/admin/projetos" />);
-    type("Título", "Novo");
-    fireEvent.click(screen.getByRole("button", { name: "Salvar" }));
-    await waitFor(() => expect(push).toHaveBeenCalledWith("/admin/projetos"));
-    expect(refresh).toHaveBeenCalled();
-  });
-
-  it("item existente fica aberto e atualiza", async () => {
+describe("ItemEditor existente", () => {
+  it("digitar e esperar 800 ms grava sem clicar em nada", async () => {
+    vi.useFakeTimers();
     wrap(<ItemEditor kind="project" row={project} base="/admin/projetos" />);
-    fireEvent.click(screen.getByRole("button", { name: "Salvar" }));
-    await waitFor(() => expect(refresh).toHaveBeenCalled());
-    expect(push).not.toHaveBeenCalled();
-  });
-
-  it("dois cliques rápidos enviam uma vez só", async () => {
-    saveItem.mockReturnValue(new Promise(() => {}));
-    wrap(<ItemEditor kind="project" row={project} base="/admin/projetos" />);
-    const btn = screen.getByRole("button", { name: "Salvar" });
-    fireEvent.click(btn);
-    fireEvent.click(btn);
+    type("Título", "Novo título");
+    expect(saveItem).not.toHaveBeenCalled();
+    await wait();
     expect(saveItem).toHaveBeenCalledTimes(1);
+    expect((saveItem.mock.calls[0][1] as FormData).get("title")).toBe("Novo título");
+    expect(refresh).toHaveBeenCalled();
+    expect(push).not.toHaveBeenCalled();
+    expect(screen.getByText("Salvo ✓")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Desfazer" })).toBeTruthy();
   });
 
   it("etiqueta nova vai no FormData uma por linha", async () => {
+    vi.useFakeTimers();
     wrap(<ItemEditor kind="project" row={project} base="/admin/projetos" />);
     const tags = screen.getByLabelText("Tecnologias");
     fireEvent.change(tags, { target: { value: "MySQL" } });
     fireEvent.keyDown(tags, { key: "Enter" });
-    fireEvent.click(screen.getByRole("button", { name: "Salvar" }));
-    await waitFor(() => expect(saveItem).toHaveBeenCalled());
+    await wait();
     expect((saveItem.mock.calls[0][1] as FormData).get("stack")).toBe("PHP\nMySQL");
   });
 
-  it("erro do servidor aparece junto ao campo", async () => {
+  it("erro do servidor aparece junto ao campo e o status pede correção", async () => {
     saveItem.mockResolvedValue({ errors: { title: "Título: campo obrigatório" } });
+    vi.useFakeTimers();
     wrap(<ItemEditor kind="project" row={project} base="/admin/projetos" />);
-    fireEvent.click(screen.getByRole("button", { name: "Salvar" }));
-    expect(await screen.findByText("Título: campo obrigatório")).toBeTruthy();
+    type("Título", "x");
+    await wait();
+    expect(screen.getByText("Título: campo obrigatório")).toBeTruthy();
+    expect(screen.getByText("Corrija os campos destacados")).toBeTruthy();
+  });
+
+  it("Voltar grava a edição pendente antes de navegar", async () => {
+    vi.useFakeTimers();
+    wrap(<ItemEditor kind="project" row={project} base="/admin/projetos" />);
+    type("Título", "Pendente");
+    fireEvent.click(screen.getByRole("button", { name: "Voltar" }));
+    await wait(0);
+    expect(saveItem).toHaveBeenCalledTimes(1);
+    expect(push).toHaveBeenCalledWith("/admin/projetos");
+  });
+
+  it("Voltar não sai quando a gravação falha (o texto não se perde)", async () => {
+    saveItem.mockResolvedValue({ errors: { title: "Título: campo obrigatório" } });
+    vi.useFakeTimers();
+    wrap(<ItemEditor kind="project" row={project} base="/admin/projetos" />);
+    type("Título", "x");
+    fireEvent.click(screen.getByRole("button", { name: "Voltar" }));
+    await wait(0);
+    expect(saveItem).toHaveBeenCalledTimes(1);
+    expect(push).not.toHaveBeenCalled();
+  });
+
+  it("Desfazer grava de novo a versão anterior", async () => {
+    vi.useFakeTimers();
+    wrap(<ItemEditor kind="project" row={project} base="/admin/projetos" />);
+    type("Título", "Outro");
+    await wait();
+    fireEvent.click(screen.getByRole("button", { name: "Desfazer" }));
+    await wait();
+    expect(saveItem).toHaveBeenCalledTimes(2);
+    expect((saveItem.mock.calls[1][1] as FormData).get("title")).toBe("Pedidos");
+  });
+});
+
+describe("ItemEditor novo", () => {
+  it("não grava sozinho; 'Criar' grava e volta para a lista", async () => {
+    vi.useFakeTimers();
+    wrap(<ItemEditor kind="project" row={null} base="/admin/projetos" />);
+    type("Título", "Novo");
+    await wait(2000);
+    expect(saveItem).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Criar" }));
+    await wait(0);
+    expect(saveItem).toHaveBeenCalledTimes(1);
+    expect(push).toHaveBeenCalledWith("/admin/projetos");
+    expect(refresh).toHaveBeenCalled();
+  });
+
+  it("tem 'Cancelar' e não tem 'Voltar'", () => {
+    wrap(<ItemEditor kind="project" row={null} base="/admin/projetos" />);
+    expect(screen.getByText("Cancelar")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Voltar" })).toBeNull();
+  });
+
+  it("guarda a imagem até o Criar", async () => {
+    wrap(<ItemEditor kind="project" row={null} base="/admin/projetos" />);
+    type("Título", "Novo");
+    pickFile("Imagem (opcional)");
+    await act(async () => {});
+    expect(saveItem).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Criar" }));
+    await waitFor(() => expect(saveItem).toHaveBeenCalled());
+    expect((saveItem.mock.calls[0][1] as FormData).get("imageKey")).toBe(KEY);
   });
 });
 
 describe("não perder o que foi digitado", () => {
-  const project = { id: 3, title: "Pedidos", titleEn: "", description: "d", descriptionEn: "", stack: '["PHP"]', stackEn: "[]", url: "", metric: "", metricEn: "", imagePath: null, visible: true };
-
-  it("erro só no outro idioma leva para ele e mostra o aviso", async () => {
-    saveItem.mockResolvedValue({ errors: { title: "Título: campo obrigatório" } });
-    wrap(<ItemEditor kind="project" row={project} base="/admin/projetos" />);
-    fireEvent.click(screen.getByRole("radio", { name: /EN/ }));
-    fireEvent.click(screen.getByRole("button", { name: "Salvar" }));
-    expect(await screen.findByText("Título: campo obrigatório")).toBeTruthy();
-    expect(screen.getByRole("radio", { name: /PT/ }).getAttribute("aria-checked")).toBe("true");
-    expect(screen.getByText("Corrija os campos destacados.")).toBeTruthy();
-  });
-
-  it("texto pendente na etiqueta entra ao clicar em Salvar (blur) e marca como não salvo", async () => {
-    let dirty = false;
-    const Probe = () => { dirty = useAdminStatus().dirty; return null; };
-    render(<AdminStatusProvider><Probe /><ItemEditor kind="project" row={project} base="/admin/projetos" /></AdminStatusProvider>);
-    const tags = screen.getByLabelText("Tecnologias");
-    tags.focus();
-    fireEvent.change(tags, { target: { value: "MySQL" } });
-    expect(dirty).toBe(true);
-    fireEvent.blur(tags);
-    fireEvent.click(screen.getByRole("button", { name: "Salvar" }));
-    await waitFor(() => expect(saveItem).toHaveBeenCalled());
-    expect((saveItem.mock.calls[0][1] as FormData).get("stack")).toBe("PHP\nMySQL");
-  });
-
   it("Ctrl+S também leva o texto pendente da etiqueta", async () => {
     wrap(<ItemEditor kind="project" row={project} base="/admin/projetos" />);
     const tags = screen.getByLabelText("Tecnologias");
@@ -179,78 +256,33 @@ describe("não perder o que foi digitado", () => {
   });
 });
 
-describe("envio de arquivos antes de salvar", () => {
-  const pick = () =>
-    fireEvent.change(screen.getByLabelText("Foto"), { target: { files: [new File([new Uint8Array(10)], "f.png", { type: "image/png" })] } });
-
-  it("envio que falha não salva, mostra erro no campo e mantém o texto", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("rede")));
-    wrap(<ProfileEditor row={profileRow} />);
-    type("Nome", "Beatriz Lima");
-    pick();
-    fireEvent.click(screen.getByRole("button", { name: "Salvar" }));
-    expect(await screen.findByText("Falha ao enviar o arquivo")).toBeTruthy();
-    expect(updateProfile).not.toHaveBeenCalled();
-    expect((screen.getByLabelText("Nome") as HTMLInputElement).value).toBe("Beatriz Lima");
-  });
-
-  it("envio OK manda só a chave para a action", async () => {
-    wrap(<ProfileEditor row={profileRow} />);
-    pick();
-    fireEvent.click(screen.getByRole("button", { name: "Salvar" }));
-    await waitFor(() => expect(updateProfile).toHaveBeenCalled());
-    const fd = updateProfile.mock.calls[0][0] as FormData;
-    expect(fd.get("photoKey")).toBe(KEY);
-    expect(fd.has("photo")).toBe(false);
-  });
-
-  it("depois de erro de validação, salvar de novo reenvia o arquivo (o servidor apagou o anterior)", async () => {
-    updateProfile.mockResolvedValueOnce({ errors: { email: "E-mail inválido" } });
-    wrap(<ProfileEditor row={profileRow} />);
-    pick();
-    fireEvent.click(screen.getByRole("button", { name: "Salvar" }));
-    await screen.findByText("E-mail inválido");
-    fireEvent.click(screen.getByRole("button", { name: "Salvar" }));
-    await waitFor(() => expect(updateProfile).toHaveBeenCalledTimes(2));
-    expect(requestUpload).toHaveBeenCalledTimes(2);
-  });
-});
-
-describe("reenvio depois de falha", () => {
-  it("se a action lança, o próximo Salvar envia o arquivo de novo", async () => {
-    updateProfile.mockRejectedValueOnce(new Error("rede"));
-    wrap(<ProfileEditor row={profileRow} />);
-    fireEvent.change(screen.getByLabelText("Foto"), { target: { files: [new File([new Uint8Array(10)], "f.png", { type: "image/png" })] } });
-    fireEvent.click(screen.getByRole("button", { name: "Salvar" }));
-    await screen.findAllByRole("alert");
-    fireEvent.click(screen.getByRole("button", { name: "Salvar" }));
-    await waitFor(() => expect(updateProfile).toHaveBeenCalledTimes(2));
-    expect(requestUpload).toHaveBeenCalledTimes(2);
-  });
-});
-
-describe("prévia fiel ao site", () => {
-  const withImage = { id: 3, title: "Pedidos", titleEn: "", description: "d", descriptionEn: "", stack: "[]", stackEn: "[]", url: "", metric: "", metricEn: "", imagePath: KEY, visible: true };
+describe("imagem do item", () => {
   beforeEach(() => vi.stubEnv("NEXT_PUBLIC_FILES_URL", "https://pub.test"));
   afterEach(() => vi.unstubAllEnvs());
   const previewImgs = (c: HTMLElement) => c.querySelectorAll("aside img").length;
 
-  it("marcar remover tira a imagem da prévia na hora", () => {
-    const { container } = wrap(<ItemEditor kind="project" row={withImage} base="/admin/projetos" />);
-    expect(previewImgs(container)).toBe(1);
-    expect(container.querySelector("aside img")?.getAttribute("src")).toContain(encodeURIComponent(`https://pub.test/${KEY}`));
-    fireEvent.click(screen.getByLabelText("remover"));
-    expect(previewImgs(container)).toBe(0);
+  it("escolher grava na hora só com a chave", async () => {
+    wrap(<ItemEditor kind="project" row={project} base="/admin/projetos" />);
+    pickFile("Imagem (opcional)");
+    await waitFor(() => expect(saveItem).toHaveBeenCalled());
+    const fd = saveItem.mock.calls[0][1] as FormData;
+    expect(fd.get("imageKey")).toBe(KEY);
+    expect(fd.has("image")).toBe(false);
   });
 
-  it("depois de salvar com remoção a prévia continua sem imagem", async () => {
+  it("Remover grava na hora com remove_image e tira a imagem da prévia", async () => {
     const { container } = wrap(<ItemEditor kind="project" row={withImage} base="/admin/projetos" />);
-    fireEvent.click(screen.getByLabelText("remover"));
-    fireEvent.click(screen.getByRole("button", { name: "Salvar" }));
-    await waitFor(() => expect(refresh).toHaveBeenCalled());
+    expect(container.querySelector("aside img")?.getAttribute("src")).toContain(encodeURIComponent(`https://pub.test/${KEY}`));
+    fireEvent.click(screen.getByRole("button", { name: "Remover" }));
+    await waitFor(() => expect(saveItem).toHaveBeenCalled());
     expect((saveItem.mock.calls[0][1] as FormData).get("remove_image")).toBe("on");
-    expect(previewImgs(container)).toBe(0);
-    expect(screen.queryByText("ver arquivo atual")).toBeNull();
+    await waitFor(() => expect(previewImgs(container)).toBe(0));
+  });
+
+  it("depois de remover aparece Desfazer", async () => {
+    wrap(<ItemEditor kind="project" row={withImage} base="/admin/projetos" />);
+    fireEvent.click(screen.getByRole("button", { name: "Remover" }));
+    expect(await screen.findByRole("button", { name: "Desfazer" })).toBeTruthy();
   });
 
   it("competências do EN aparecem em inglês na prévia", () => {
@@ -268,59 +300,24 @@ describe("prévia fiel ao site", () => {
 });
 
 describe("guardas do editor", () => {
-  const row = { id: 3, title: "Pedidos", titleEn: "", description: "d", descriptionEn: "", stack: "[]", stackEn: "[]", url: "", metric: "", metricEn: "", imagePath: null, visible: true };
-  const ctrlS = () => fireEvent.keyDown(window, { key: "s", ctrlKey: true });
   const Probe = ({ out }: { out: { dirty?: boolean } }) => {
     out.dirty = useAdminStatus().dirty;
     return null;
   };
 
-  it("segundo Ctrl+S após salvar item novo não cria outro", async () => {
-    wrap(<ItemEditor kind="project" row={null} base="/admin/projetos" />);
-    type("Título", "Novo");
-    ctrlS();
-    await waitFor(() => expect(push).toHaveBeenCalled());
-    ctrlS();
-    await act(async () => {});
-    expect(saveItem).toHaveBeenCalledTimes(1);
-  });
-
-  it("Ctrl+S repetido durante o envio chama a action uma vez", () => {
-    saveItem.mockReturnValue(new Promise(() => {}));
-    wrap(<ItemEditor kind="project" row={row} base="/admin/projetos" />);
-    ctrlS();
-    ctrlS();
-    expect(saveItem).toHaveBeenCalledTimes(1);
-  });
-
-  it("alteração feita durante o envio mantém o aviso de não salvo", async () => {
-    let resolve!: (v: { ok: boolean }) => void;
-    saveItem.mockReturnValue(new Promise((r) => (resolve = r)));
+  it("dirty: limpo ao abrir, marcado ao editar, limpo depois de gravar", async () => {
+    vi.useFakeTimers();
     const out: { dirty?: boolean } = {};
-    wrap(<><Probe out={out} /><ItemEditor kind="project" row={row} base="/admin/projetos" /></>);
-    type("Título", "A");
-    ctrlS();
-    type("Título", "AB");
-    await act(async () => resolve({ ok: true }));
-    expect(out.dirty).toBe(true);
-  });
-
-  it("dirty: limpo ao abrir, marcado ao editar, limpo ao salvar; beforeunload acompanha", async () => {
-    const out: { dirty?: boolean } = {};
-    const add = vi.spyOn(window, "addEventListener");
-    const remove = vi.spyOn(window, "removeEventListener");
-    wrap(<><Probe out={out} /><ItemEditor kind="project" row={row} base="/admin/projetos" /></>);
+    wrap(<><Probe out={out} /><ItemEditor kind="project" row={project} base="/admin/projetos" /></>);
     expect(out.dirty).toBe(false);
     type("Título", "B");
     expect(out.dirty).toBe(true);
-    expect(add.mock.calls.some(([t]) => t === "beforeunload")).toBe(true);
-    fireEvent.click(screen.getByRole("button", { name: "Salvar" }));
-    await waitFor(() => expect(out.dirty).toBe(false));
-    expect(remove.mock.calls.some(([t]) => t === "beforeunload")).toBe(true);
+    await wait();
+    expect(out.dirty).toBe(false);
   });
 
   it("ponto do EN não aparece com lista vazia em português", () => {
-    wrap(<ItemEditor kind="project" row={{ ...row, title: "", description: "" }} base="/admin/projetos" />);
+    wrap(<ItemEditor kind="project" row={{ ...project, stack: "[]", title: "", description: "" }} base="/admin/projetos" />);
     expect(screen.queryByText("tradução incompleta")).toBeNull();
     type("Título", "Pedidos");
     expect(screen.getByText("tradução incompleta").className).toContain("sr-only");

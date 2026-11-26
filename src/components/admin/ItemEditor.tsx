@@ -7,12 +7,11 @@ import type { Kind } from "@/lib/tables";
 import type { Skill } from "@/lib/types";
 import { useAdminStatus } from "./AdminStatus";
 import { Check, Field, Select } from "./controls";
-import Dropzone from "./Dropzone";
 import EditorFrame, { Tr, TrList } from "./EditorFrame";
 import GuardedLink from "./GuardedLink";
+import ImageField from "./ImageField";
 import Preview from "./Preview";
 import { useEditor } from "./useEditor";
-import { useObjectUrl } from "./useObjectUrl";
 
 const SKILL_LEVELS = [["", "—"], ["intermediate", "Intermediário"], ["learning", "Aprendendo"]] as const;
 const TITLE_KEY: Record<Kind, string> = { project: "title", experience: "role", skill: "name", education: "course", language: "name" };
@@ -28,15 +27,17 @@ export default function ItemEditor({ kind, row, base, siblings }: Props) {
     kind,
     row,
     save: (fd) => saveItem(kind, fd),
+    autosave: !isNew,
     onSaved: () => {
-      notify("Salvo ✓");
       router.refresh(); // contagens do menu
-      if (isNew) router.push(base); // volta à lista (e evita salvar duas vezes um item novo)
+      if (isNew) {
+        notify("Salvo ✓");
+        router.push(base); // volta à lista (e evita salvar duas vezes um item novo)
+      }
     },
   });
-  const { draft, set, shown, currentUrl, setFile, setRemoved, errors, locale } = ed;
+  const { draft, set, errors, locale } = ed;
   const title = row ? String(row[TITLE_KEY[kind]] ?? "") || "Editar item" : "Novo item";
-  const image = useObjectUrl(shown.image);
 
   useEffect(() => {
     setCrumb(isNew ? "novo" : title);
@@ -51,8 +52,15 @@ export default function ItemEditor({ kind, row, base, siblings }: Props) {
     <EditorFrame
       title={title}
       editor={ed}
-      preview={<Preview kind={kind} draft={draft} locale={locale} fileUrl={image} siblings={siblings?.[locale]} />}
-      cancel={<GuardedLink href={base} className="btn">Cancelar</GuardedLink>}
+      autosave={!isNew}
+      preview={<Preview kind={kind} draft={draft} locale={locale} fileUrl={ed.imageUrl("image")} siblings={siblings?.[locale]} />}
+      cancel={
+        isNew ? (
+          <GuardedLink href={base} className="btn">Cancelar</GuardedLink>
+        ) : (
+          <button type="button" className="btn" onClick={async () => { if (await ed.flush()) router.push(base); }}>Voltar</button>
+        )
+      }
     >
       {kind === "project" && (
         <>
@@ -61,16 +69,14 @@ export default function ItemEditor({ kind, row, base, siblings }: Props) {
           <TrList editor={ed} label="Tecnologias" name="stack" hint="Enter adiciona. Em inglês vazio, usa o português." />
           {text("url", "Link (opcional)")}
           <Tr editor={ed} label="Métrica (opcional)" name="metric" />
-          <Dropzone
+          <ImageField
             label="Imagem (opcional)"
-            name="image"
-            accept="image/jpeg,image/png,image/webp"
-            kind="image"
-            currentUrl={currentUrl("image")}
-            onFile={(f) => setFile("image", f)}
-            onRemove={(b) => setRemoved("image", b)}
-            error={errors.image}
             hint="JPG, PNG ou WebP, até 3 MB."
+            url={ed.imageUrl("image")}
+            busy={ed.uploading || ed.status === "saving"}
+            onPick={(f) => ed.pickImage("image", f)}
+            onRemove={() => ed.removeImage("image")}
+            error={errors.image}
           />
         </>
       )}

@@ -1,21 +1,9 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { ActionError, Check, Field, Select } from "@/components/admin/controls";
-import Dropzone from "@/components/admin/Dropzone";
 import TagInput from "@/components/admin/TagInput";
 
-const create = vi.fn(() => "blob:t");
-const revoke = vi.fn();
-beforeEach(() => {
-  create.mockClear();
-  revoke.mockClear();
-  URL.createObjectURL = create;
-  URL.revokeObjectURL = revoke;
-});
 afterEach(cleanup);
-
-const fileOf = (bytes: number, name = "a.png", type = "image/png") =>
-  new File([new Uint8Array(bytes)], name, { type });
 
 describe("TagInput", () => {
   const setup = (value: string[] = []) => {
@@ -71,78 +59,6 @@ describe("TagInput", () => {
     render(<TagInput label="Realizações" long value={["a", "b"]} onChange={onChange} />);
     fireEvent.change(screen.getByDisplayValue("b"), { target: { value: "bb" } });
     expect(onChange).toHaveBeenCalledWith(["a", "bb"]);
-  });
-});
-
-describe("Dropzone", () => {
-  const setup = (props = {}) => {
-    const onFile = vi.fn();
-    const onRemove = vi.fn();
-    const utils = render(
-      <Dropzone label="Foto" name="photo" accept="image/*" currentUrl={null} kind="image" onFile={onFile} onRemove={onRemove} {...props} />,
-    );
-    return { onFile, onRemove, input: screen.getByLabelText("Foto") as HTMLInputElement, ...utils };
-  };
-
-  it("arquivo acima do limite mostra o erro e não chama onFile", () => {
-    const { onFile, input } = setup();
-    fireEvent.change(input, { target: { files: [fileOf(4 * 1024 * 1024)] } });
-    expect(screen.getByRole("alert")).toHaveTextContent("Arquivo maior que o limite");
-    expect(onFile).not.toHaveBeenCalledWith(expect.any(File));
-  });
-
-  it("arquivo válido chama onFile e mostra miniatura", () => {
-    const { onFile, input } = setup();
-    const f = fileOf(10 * 1024);
-    fireEvent.change(input, { target: { files: [f] } });
-    expect(onFile).toHaveBeenCalledWith(f);
-    expect(screen.getByRole("img")).toHaveAttribute("src", "blob:t");
-  });
-
-  it("revoga a URL ao desmontar", () => {
-    const { input, unmount } = setup();
-    fireEvent.change(input, { target: { files: [fileOf(10)] } });
-    unmount();
-    expect(revoke).toHaveBeenCalledWith("blob:t");
-  });
-
-  it("soltar um arquivo na área também envia", () => {
-    const { onFile, container } = setup();
-    const f = fileOf(10);
-    fireEvent.drop(container.querySelector("input")!.parentElement as Element, { dataTransfer: { files: [f] } });
-    expect(onFile).toHaveBeenCalledWith(f);
-  });
-
-  it("soltar algo sem arquivo é ignorado", () => {
-    const { onFile, container } = setup();
-    fireEvent.drop(container.querySelector("input")!.parentElement as Element, { dataTransfer: { files: [] } });
-    expect(onFile).not.toHaveBeenCalled();
-  });
-
-  it("arquivo grande avisa o pai com onFile(null)", () => {
-    const { onFile, input } = setup();
-    fireEvent.change(input, { target: { files: [fileOf(4 * 1024 * 1024)] } });
-    expect(onFile).toHaveBeenCalledTimes(1);
-    expect(onFile).toHaveBeenCalledWith(null);
-  });
-
-  it("escolher novo arquivo depois de marcar remover chama onRemove(false)", () => {
-    const { onRemove, input } = setup({ currentUrl: "/uploads/x.png" });
-    fireEvent.click(screen.getByLabelText("remover"));
-    fireEvent.change(input, { target: { files: [fileOf(10)] } });
-    expect(onRemove).toHaveBeenLastCalledWith(false);
-  });
-
-  it("PDF mostra o nome do arquivo", () => {
-    const { input } = setup({ kind: "pdf", accept: "application/pdf" });
-    fireEvent.change(input, { target: { files: [fileOf(10, "cv.pdf", "application/pdf")] } });
-    expect(screen.getByText("cv.pdf")).toBeInTheDocument();
-  });
-
-  it("remover um arquivo existente chama onRemove(true)", () => {
-    const { onRemove } = setup({ currentUrl: "/uploads/x.png" });
-    fireEvent.click(screen.getByLabelText("remover"));
-    expect(onRemove).toHaveBeenCalledWith(true);
   });
 });
 
