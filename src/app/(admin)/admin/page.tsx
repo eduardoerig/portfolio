@@ -1,4 +1,5 @@
 import ProfileEditor from "@/components/admin/ProfileEditor";
+import StorageCleanup from "@/components/admin/StorageCleanup";
 import { db } from "@/lib/db";
 
 export default async function ProfilePage() {
@@ -7,6 +8,7 @@ export default async function ProfilePage() {
     <>
       <h1 className="text-xl font-semibold">Perfil</h1>
       <ProfileEditor row={profile} />
+      <StorageCleanup />
     </>
   );
 }

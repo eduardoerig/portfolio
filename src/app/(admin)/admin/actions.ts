@@ -6,7 +6,7 @@ import { requireAdmin } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { moveItem } from "@/lib/reorder";
 import { assertKind, ORDER, table, type Kind } from "@/lib/tables";
-import { deleteObject, headObject, presignPut } from "@/lib/storage";
+import { deleteObject, headObject, listObjects, presignPut } from "@/lib/storage";
 import { isStoredKey, newKey, validateUpload, type UploadKind } from "@/lib/uploads";
 
 // Resultado dos formulários: erros por campo, em português, para mostrar ao lado do campo.
@@ -212,6 +212,26 @@ export async function requestUpload(
   if (!check.ok) return { ok: false, error: check.error };
   const key = newKey(kind, contentType);
   return { ok: true, key, url: await presignPut(key, contentType, size) };
+}
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+// Apaga do armazenamento o que nenhum registro usa. Só mexe em arquivo com mais de 24 h:
+// um envio recém-feito pode estar esperando o formulário ser salvo.
+export async function cleanStorage(): Promise<{ removed: number; freedBytes: number; totalBytes: number }> {
+  await requireAdmin();
+  const [objects, profile, projects] = await Promise.all([
+    listObjects(),
+    db.profile.findUnique({ where: { id: 1 }, select: { photoPath: true } }),
+    db.project.findMany({ select: { imagePath: true } }),
+  ]);
+  const used = new Set([profile?.photoPath, ...projects.map((p) => p.imagePath)]);
+  const cutoff = Date.now() - DAY_MS;
+  const loose = objects.filter((o) => isStoredKey(o.key) && !used.has(o.key) && o.lastModified.getTime() < cutoff);
+  await removeStored(loose.map((o) => o.key));
+  const freedBytes = loose.reduce((n, o) => n + o.size, 0);
+  const totalBytes = objects.reduce((n, o) => n + o.size, 0) - freedBytes;
+  return { removed: loose.length, freedBytes, totalBytes };
 }
 
 export async function updateProfile(form: FormData): Promise<FormState> {

@@ -71,6 +71,23 @@ describe("storage (R2)", () => {
     expect(fetchMock.mock.calls[0][0].method ?? fetchMock.mock.calls[0][1]?.method).toBe("HEAD");
   });
 
+  it("listObjects lê chave, tamanho e data de cada arquivo", async () => {
+    withR2();
+    const xml = `<?xml version="1.0" encoding="UTF-8"?><ListBucketResult><Name>bucket</Name>
+      <Contents><Key>${KEY}</Key><LastModified>2026-11-20T10:00:00.000Z</LastModified><Size>1234</Size></Contents>
+      <Contents><Key>b.pdf</Key><LastModified>2026-11-25T08:30:00.000Z</LastModified><Size>99</Size></Contents>
+      <IsTruncated>false</IsTruncated></ListBucketResult>`;
+    const fetchMock = vi.fn().mockResolvedValue(new Response(xml, { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const { listObjects } = await import("@/lib/storage");
+    expect(await listObjects()).toEqual([
+      { key: KEY, size: 1234, lastModified: new Date("2026-11-20T10:00:00.000Z") },
+      { key: "b.pdf", size: 99, lastModified: new Date("2026-11-25T08:30:00.000Z") },
+    ]);
+    const req = fetchMock.mock.calls[0][0] as Request;
+    expect(new URL(req.url).searchParams.get("list-type")).toBe("2");
+  });
+
   it("deleteObject ignora 404", async () => {
     withR2();
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(null, { status: 404 })));

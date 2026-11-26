@@ -39,3 +39,20 @@ export async function deleteObject(key: string): Promise<void> {
   const res = await client.fetch(`${base}/${key}`, { method: "DELETE" });
   if (!res.ok && res.status !== 404) throw new Error(`Falha ao apagar o arquivo (${res.status})`);
 }
+
+export type StoredObject = { key: string; size: number; lastModified: Date };
+
+// Lista os arquivos do bucket (ListObjectsV2).
+// shortcut: lê só a primeira página (1000 arquivos); paginar com continuation-token se um dia passar disso.
+export async function listObjects(): Promise<StoredObject[]> {
+  const { client, base } = config();
+  const res = await client.fetch(`${base}?list-type=2`);
+  if (!res.ok) throw new Error(`Falha ao listar os arquivos (${res.status})`);
+  const xml = await res.text();
+  const tag = (block: string, name: string) => block.match(new RegExp(`<${name}>([^<]*)</${name}>`))?.[1] ?? "";
+  return [...xml.matchAll(/<Contents>([\s\S]*?)<\/Contents>/g)].map(([, b]) => ({
+    key: tag(b, "Key"),
+    size: Number(tag(b, "Size")),
+    lastModified: new Date(tag(b, "LastModified")),
+  }));
+}

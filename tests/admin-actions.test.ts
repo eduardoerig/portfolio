@@ -12,11 +12,12 @@ vi.mock("@/lib/auth", () => ({ requireAdmin: () => requireAdmin() }));
 const revalidatePath = vi.fn();
 vi.mock("next/cache", () => ({ revalidatePath: (p: string) => revalidatePath(p) }));
 // Bucket em memória no lugar do R2: nenhum teste usa rede.
-const bucket = new Map<string, { size: number; contentType: string }>();
+const bucket = new Map<string, { size: number; contentType: string; modified?: Date }>();
 const storage = {
   presignPut: vi.fn(async (key: string) => `https://r2.test/${key}?X-Amz-Expires=300`),
   headObject: vi.fn(async (key: string) => bucket.get(key) ?? null),
   deleteObject: vi.fn(async (key: string) => void bucket.delete(key)),
+  listObjects: vi.fn(async () => [...bucket].map(([key, v]) => ({ key, size: v.size, lastModified: v.modified ?? new Date() }))),
 };
 vi.mock("@/lib/storage", () => storage);
 
@@ -170,6 +171,36 @@ describe("deleteItem e autorização", () => {
   it("com admin, apaga", async () => {
     await actions.deleteItem("project", 3);
     expect(await db.project.findUnique({ where: { id: 3 } })).toBeNull();
+  });
+});
+
+describe("cleanStorage", () => {
+  const HOUR = 60 * 60 * 1000;
+  const old = new Date(Date.now() - 72 * HOUR);
+  const key = (ext: string) => `${crypto.randomUUID()}.${ext}`;
+
+  it("apaga só o que ninguém usa e tem mais de 24 h", async () => {
+    bucket.clear();
+    const a = key("png"); // foto do perfil
+    const b = key("png"); // solto, antigo
+    const c = key("png"); // solto, recém-enviado (salvamento pode estar em andamento)
+    const d = key("pdf"); // currículo antigo: só no campo obsoleto cvPath
+    bucket.set(a, { size: 300, contentType: "image/png", modified: old });
+    bucket.set(b, { size: 1000, contentType: "image/png", modified: old });
+    bucket.set(c, { size: 200, contentType: "image/png", modified: new Date(Date.now() - HOUR) });
+    bucket.set(d, { size: 500, contentType: "application/pdf", modified: old });
+    await db.profile.update({ where: { id: 1 }, data: { photoPath: a, cvPath: d } });
+
+    expect(await actions.cleanStorage()).toEqual({ removed: 2, freedBytes: 1500, totalBytes: 500 });
+    expect([...bucket.keys()].sort()).toEqual([a, c].sort());
+    await db.profile.update({ where: { id: 1 }, data: { photoPath: null, cvPath: null } });
+  });
+
+  it("sem sessão não apaga nada", async () => {
+    requireAdmin.mockRejectedValue(new Error("Não autorizado"));
+    await expect(actions.cleanStorage()).rejects.toThrow("Não autorizado");
+    expect(storage.listObjects).not.toHaveBeenCalled();
+    expect(storage.deleteObject).not.toHaveBeenCalled();
   });
 });
 
