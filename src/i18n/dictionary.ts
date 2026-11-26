@@ -51,6 +51,18 @@ const pt = {
     prompt: "Escolha o canal que preferir:",
     email: "E-mail",
   },
+  // Títulos e rótulos do currículo em PDF.
+  cv: {
+    contact: "Contato",
+    skills: "Competências",
+    education: "Formação",
+    languages: "Idiomas",
+    summary: "Resumo",
+    experience: "Experiência",
+    projects: "Projetos",
+    learningLegend: "Contorno tracejado = em aprendizado",
+    learningPrefix: "Em aprendizado",
+  },
 };
 
 export type Dictionary = typeof pt;
@@ -103,6 +115,17 @@ const en: Dictionary = {
   contact: {
     prompt: "Pick whichever channel you prefer:",
     email: "Email",
+  },
+  cv: {
+    contact: "Contact",
+    skills: "Skills",
+    education: "Education",
+    languages: "Languages",
+    summary: "Summary",
+    experience: "Experience",
+    projects: "Projects",
+    learningLegend: "Dashed outline = currently learning",
+    learningPrefix: "Currently learning",
   },
 };
 
