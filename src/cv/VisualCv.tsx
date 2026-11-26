@@ -16,10 +16,11 @@ const ICONS = {
 };
 
 const s = StyleSheet.create({
-  page: { flexDirection: "row", fontFamily: "Inter", fontSize: 8.5, color: INK, lineHeight: 1.35 },
+  // A margem de cima e de baixo fica na página: assim vale também da página 2 em diante.
+  page: { flexDirection: "row", fontFamily: "Inter", fontSize: 8.5, color: INK, lineHeight: 1.35, paddingTop: 24, paddingBottom: 24 },
   sideBg: { position: "absolute", top: 0, left: 0, bottom: 0, width: SIDE_W, backgroundColor: INK },
-  side: { width: SIDE_W, paddingHorizontal: 22, paddingTop: 22, paddingBottom: 22, color: "#ffffff" },
-  main: { flex: 1, paddingHorizontal: 28, paddingTop: 24, paddingBottom: 24 },
+  side: { width: SIDE_W, paddingHorizontal: 22, color: "#ffffff" },
+  main: { flex: 1, paddingHorizontal: 28 },
   monogram: { alignSelf: "center", width: 58, height: 58, borderRadius: 29, borderWidth: 1.6, borderColor: "#ffffff", justifyContent: "center", alignItems: "center", marginBottom: 14 },
   monogramText: { fontSize: 17, fontWeight: 700 },
   sideTitle: { fontSize: 8, fontWeight: 700, letterSpacing: 2, textTransform: "uppercase", paddingBottom: 3, borderBottomWidth: 0.8, borderBottomColor: "#8a8a8a", marginTop: 12, marginBottom: 7 },

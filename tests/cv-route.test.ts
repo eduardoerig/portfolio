@@ -75,4 +75,21 @@ describe("resumeResponse", () => {
     expect(pages).toBeGreaterThanOrEqual(2);
     expect(text).toContain("Projeto extra 8");
   }, 30_000);
+
+  // Várias quantidades: a sobra no fim da página muda com o conteúdo.
+  it("páginas seguintes têm margem no topo e nenhuma página sai em branco", async () => {
+    const resume = await data.getResume("pt");
+    for (const [nExp, nProj] of [[7, 4], [3, 12], [8, 20]]) {
+      const experiences = Array.from({ length: nExp }, (_, i) => ({ ...resume.experiences[0], id: 200 + i, role: `Cargo ${i + 1}` }));
+      const projects = Array.from({ length: nProj }, (_, i) => ({ ...resume.projects[0], id: 100 + i, title: `Projeto ${i + 1}` }));
+      const pdf = await getDocumentProxy(new Uint8Array(await render.renderResume({ ...resume, experiences, projects }, false)));
+      for (let n = 1; n <= pdf.numPages; n++) {
+        const page = await pdf.getPage(n);
+        const height = page.view[3];
+        const ys = (await page.getTextContent()).items.flatMap((it) => ("transform" in it && it.str.trim() ? [it.transform[5]] : []));
+        expect(ys.length, `página ${n} de ${nExp}/${nProj} sem texto`).toBeGreaterThan(0);
+        expect(Math.max(...ys), `página ${n} de ${nExp}/${nProj} colada no topo`).toBeLessThan(height - 24);
+      }
+    }
+  }, 60_000);
 });
