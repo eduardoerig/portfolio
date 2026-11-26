@@ -73,9 +73,10 @@ export function buildResume(p: Portfolio, x: CvExtras, locale: Locale): Resume {
 const plain = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "");
 
 export function cvFilename(fullName: string, locale: Locale, simple: boolean): string {
-  const w = words(plain(fullName));
+  // Vai num cabeçalho HTTP: só ASCII simples, senão a resposta falha.
+  const w = words(plain(fullName)).map((x) => x.replace(/[^A-Za-z0-9-]/g, "")).filter(Boolean);
   const name = w.length > 1 ? [w[0], w[w.length - 1]] : w;
-  return `CV_${name.join("_")}_${locale.toUpperCase()}${simple ? "_simples" : ""}.pdf`;
+  return ["CV", ...name, locale.toUpperCase()].join("_") + (simple ? "_simples" : "") + ".pdf";
 }
 
 export const linkLabel = (url: string) => url.replace(/^https?:\/\//, "").replace(/^www\./, "").replace(/\/+$/, "");

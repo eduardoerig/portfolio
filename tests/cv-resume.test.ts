@@ -71,6 +71,10 @@ describe("cvFilename e linkLabel", () => {
     expect(cvFilename("Eduardo Felipe Storck Erig", "en", true)).toBe("CV_Eduardo_Erig_EN_simples.pdf");
     expect(cvFilename("João Érig", "pt", false)).toBe("CV_Joao_Erig_PT.pdf");
   });
+  it("letras que não viram ASCII somem do nome do arquivo (o cabeçalho HTTP não aceita)", () => {
+    expect(cvFilename("Łukasz Søren", "pt", false)).toBe("CV_ukasz_Sren_PT.pdf");
+    expect(cvFilename("Иван", "en", false)).toBe("CV_EN.pdf");
+  });
   it("link sem protocolo nem barra final", () => {
     expect(linkLabel("https://github.com/eduardoerig/x/")).toBe("github.com/eduardoerig/x");
     expect(linkLabel("https://www.linkedin.com/in/eduardoerig")).toBe("linkedin.com/in/eduardoerig");
