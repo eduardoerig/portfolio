@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireAdmin } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { TITLE_KEY } from "@/lib/itemTitle";
 import { moveItem } from "@/lib/reorder";
 import { assertKind, ORDER, table, type Kind } from "@/lib/tables";
 import { deleteObject, headObject, listObjects, presignPut } from "@/lib/storage";
@@ -298,6 +299,72 @@ export async function toggleVisible(kind: Kind, id: number): Promise<void> {
   if (!row) return;
   await t.update({ where: { id }, data: { visible: !row.visible } });
   refresh();
+}
+
+// Cópia oculta no fim da lista, para cadastrar itens parecidos sem redigitar PT e EN.
+// Sem a imagem: excluir um dos dois apagaria o arquivo que o outro usa.
+export async function duplicateItem(kind: Kind, id: number): Promise<void> {
+  await requireAdmin();
+  const t = table(kind);
+  const row = await t.findUnique({ where: { id } });
+  if (!row) throw new Error("Item não encontrado");
+  const rows = await t.findMany({ orderBy: ORDER });
+  const key = TITLE_KEY[kind];
+  const data: Record<string, unknown> = {
+    ...row,
+    [key]: `${String(row[key] ?? "")} (cópia)`,
+    visible: false,
+    id: Math.max(0, ...rows.map((r) => r.id)) + 1,
+    order: Math.max(-1, ...rows.map((r) => r.order)) + 1,
+  };
+  if (kind === "project") data.imagePath = null;
+  await t.create({ data });
+  refresh();
+}
+
+// Backup do conteúdo do painel (o banco remoto não faz backup sozinho). Fica fora: tentativas de login.
+export async function exportContent() {
+  await requireAdmin();
+  const [profile, projects, experiences, skills, education, languages] = await Promise.all([
+    db.profile.findUnique({ where: { id: 1 } }),
+    db.project.findMany({ orderBy: ORDER }),
+    db.experience.findMany({ orderBy: ORDER }),
+    db.skill.findMany({ orderBy: ORDER }),
+    db.education.findMany({ orderBy: ORDER }),
+    db.language.findMany({ orderBy: ORDER }),
+  ]);
+  return { version: 1 as const, exportedAt: new Date().toISOString(), profile, projects, experiences, skills, education, languages };
+}
+
+export type LinkCheck = { label: string; url: string; state: "ok" | "broken" | "unknown"; status: number | null };
+
+// 401/403/429/999: o site recusa robôs (o LinkedIn sempre); não quer dizer que o link está quebrado.
+const BLOCKED = new Set([401, 403, 429, 999]);
+
+async function probe(url: string): Promise<Pick<LinkCheck, "state" | "status">> {
+  try {
+    const opts = { redirect: "follow" as const, signal: AbortSignal.timeout(8000) };
+    let res = await fetch(url, { ...opts, method: "HEAD" });
+    if (res.status === 405 || res.status === 501) res = await fetch(url, { ...opts, method: "GET" });
+    if (BLOCKED.has(res.status)) return { state: "unknown", status: res.status };
+    return { state: res.status < 400 ? "ok" : "broken", status: res.status };
+  } catch {
+    return { state: "broken", status: null }; // fora do ar, domínio inexistente ou demorou mais de 8 s
+  }
+}
+
+// Confere os links que aparecem no site (projetos, GitHub, LinkedIn). Só endereços já validados como http(s).
+export async function checkLinks(): Promise<LinkCheck[]> {
+  await requireAdmin();
+  const [profile, projects] = await Promise.all([
+    db.profile.findUnique({ where: { id: 1 }, select: { githubUrl: true, linkedinUrl: true } }),
+    db.project.findMany({ orderBy: ORDER, select: { title: true, url: true } }),
+  ]);
+  const targets = [
+    ...(profile ? [{ label: "GitHub", url: profile.githubUrl }, { label: "LinkedIn", url: profile.linkedinUrl }] : []),
+    ...projects.flatMap((p) => (p.url ? [{ label: p.title, url: p.url }] : [])),
+  ].filter((t, i, all) => all.findIndex((o) => o.url === t.url) === i);
+  return Promise.all(targets.map(async (t) => ({ ...t, ...(await probe(t.url)) })));
 }
 
 export async function move(kind: Kind, id: number, dir: "up" | "down"): Promise<void> {

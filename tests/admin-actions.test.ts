@@ -370,3 +370,74 @@ describe("uploads nas actions (por chave)", () => {
     expect(bucket.has(img2)).toBe(false);
   });
 });
+
+describe("onda 4: duplicar, backup e links", () => {
+  it("duplicar cria cópia oculta no fim da lista, sem a imagem, e mantém o original", async () => {
+    const original = await db.project.findFirstOrThrow({ orderBy: { id: "asc" } });
+    await db.project.update({ where: { id: original.id }, data: { imagePath: `${crypto.randomUUID()}.png` } });
+    const before = await db.project.findMany();
+    await actions.duplicateItem("project", original.id);
+    const after = await db.project.findMany();
+    expect(after.length).toBe(before.length + 1);
+    const copy = after.find((p) => !before.some((b) => b.id === p.id))!;
+    expect(copy.title).toBe(`${original.title} (cópia)`);
+    expect(copy.description).toBe(original.description);
+    expect(copy.visible).toBe(false);
+    expect(copy.imagePath).toBeNull(); // excluir um apagaria a imagem do outro
+    expect(copy.order).toBe(Math.max(...before.map((p) => p.order)) + 1);
+    expect((await db.project.findUniqueOrThrow({ where: { id: original.id } })).title).toBe(original.title);
+    await db.project.delete({ where: { id: copy.id } });
+    await db.project.update({ where: { id: original.id }, data: { imagePath: null } });
+  });
+
+  it("duplicar exige admin", async () => {
+    requireAdmin.mockRejectedValue(new Error("Não autorizado"));
+    await expect(actions.duplicateItem("project", 1)).rejects.toThrow("Não autorizado");
+  });
+
+  it("backup traz todo o conteúdo do painel", async () => {
+    const b = await actions.exportContent();
+    expect(b.version).toBe(1);
+    expect(b.profile?.id).toBe(1);
+    expect(b.projects.length).toBe(await db.project.count());
+    expect(b.experiences.length).toBe(await db.experience.count());
+    expect(b.skills.length).toBe(await db.skill.count());
+    expect(b.education.length).toBe(await db.education.count());
+    expect(b.languages.length).toBe(await db.language.count());
+    expect(Object.keys(b)).not.toContain("loginAttempts");
+  });
+
+  it("backup exige admin", async () => {
+    requireAdmin.mockRejectedValue(new Error("Não autorizado"));
+    await expect(actions.exportContent()).rejects.toThrow("Não autorizado");
+  });
+
+  it("verifica os links: ok, quebrado e os que não dá para checar", async () => {
+    const project = await db.project.findFirstOrThrow({ orderBy: { id: "asc" } });
+    await db.project.update({ where: { id: project.id }, data: { url: "https://quebrado.test/x" } });
+    // Objeto simples: o Response do Node recusa status 999 (o do LinkedIn), mas o fetch real o devolve.
+    const fetchFn = vi.fn(async (url: string) => {
+      if (url.includes("quebrado")) return { status: 404 };
+      if (url.includes("linkedin")) return { status: 999 };
+      return { status: 200 };
+    });
+    vi.stubGlobal("fetch", fetchFn);
+    const links = await actions.checkLinks();
+    vi.unstubAllGlobals();
+    const broken = links.find((l) => l.url === "https://quebrado.test/x");
+    expect(broken?.state).toBe("broken");
+    expect(broken?.label).toBe(project.title);
+    for (const l of links.filter((x) => x.url.includes("linkedin"))) expect(l.state).toBe("unknown");
+    for (const l of links.filter((x) => !x.url.includes("linkedin") && !x.url.includes("quebrado"))) expect(l.state).toBe("ok");
+    await db.project.update({ where: { id: project.id }, data: { url: project.url } });
+  });
+
+  it("verificar links exige admin e não acessa nada sem sessão", async () => {
+    const fetchFn = vi.fn();
+    vi.stubGlobal("fetch", fetchFn);
+    requireAdmin.mockRejectedValue(new Error("Não autorizado"));
+    await expect(actions.checkLinks()).rejects.toThrow("Não autorizado");
+    expect(fetchFn).not.toHaveBeenCalled();
+    vi.unstubAllGlobals();
+  });
+});

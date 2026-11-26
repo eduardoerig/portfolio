@@ -7,6 +7,11 @@ import GuardedLink from "./GuardedLink";
 
 const LEVEL = { learning: "Aprendendo", intermediate: "Intermediário" } as const;
 
+// Algum campo com português preenchido e o inglês vazio: no /en o site mostraria o português.
+const blank = (v: unknown) => v === null || v === undefined || v === "" || v === "[]";
+const missingEn = (row: Row) =>
+  Object.keys(row).some((k) => k.endsWith("En") && blank(row[k]) && !blank(row[k.slice(0, -2)]));
+
 // Mini-cartão da lista: o cartão todo leva ao editor. As ações ficam fora do link (irmãs), para não aninhar botão em <a>.
 export default function ItemCard({ kind, row, href }: { kind: Kind; row: Row; href: string }) {
   const s = (k: string) => String(row[k] ?? "");
@@ -29,6 +34,7 @@ export default function ItemCard({ kind, row, href }: { kind: Kind; row: Row; hr
           {kind === "education" && <span>{s("course")} · {s("school")}</span>}
           {kind === "language" && <span>{s("name")} · {s("level")}</span>}
           {!row.visible && <span className="chip">oculto</span>}
+          {missingEn(row) && <span className="chip" title="Há texto em português sem a versão em inglês">sem EN</span>}
         </span>
         {kind === "project" && (
           <span className="flex flex-wrap gap-1">{parseList(s("stack")).map((t) => <span key={t} className="chip">{t}</span>)}</span>
