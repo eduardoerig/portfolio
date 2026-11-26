@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import ImageField from "@/components/admin/ImageField";
 
@@ -30,24 +30,25 @@ describe("ImageField", () => {
     expect(screen.queryByAltText("Miniatura")).toBeNull();
   });
 
-  it("escolher arquivo chama onPick", () => {
+  it("escolher arquivo chama onPick", async () => {
     const { onPick, input } = setup();
     const f = fileOf(10);
     fireEvent.change(input, { target: { files: [f] } });
-    expect(onPick).toHaveBeenCalledWith(f);
+    await waitFor(() => expect(onPick).toHaveBeenCalledWith(f));
   });
 
-  it("soltar arquivo chama onPick", () => {
+  it("soltar arquivo chama onPick", async () => {
     const { onPick, view } = setup({ url: "/x.png" });
     const f = fileOf(10);
     fireEvent.drop(view.container.firstElementChild!, { dataTransfer: { files: [f] } });
-    expect(onPick).toHaveBeenCalledWith(f);
+    await waitFor(() => expect(onPick).toHaveBeenCalledWith(f));
   });
 
-  it("arquivo acima de 3 MB mostra o erro e não chama onPick", () => {
+  // Sem decodificador de imagem (jsdom): a redução não acontece e o limite avisa.
+  it("arquivo acima de 3 MB que não dá para reduzir mostra o erro e não chama onPick", async () => {
     const { onPick, input } = setup();
     fireEvent.change(input, { target: { files: [fileOf(3 * 1024 * 1024 + 1)] } });
-    expect(screen.getByRole("alert")).toBeInTheDocument();
+    expect(await screen.findByRole("alert")).toBeInTheDocument();
     expect(onPick).not.toHaveBeenCalled();
   });
 

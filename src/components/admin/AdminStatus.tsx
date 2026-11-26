@@ -13,6 +13,9 @@ type Status = {
   /** Gaveta do menu lateral no celular. */
   menuOpen: boolean;
   setMenuOpen(b: boolean): void;
+  /** Editor com salvar sozinho aberto: grava o pendente antes de sair; true = tudo gravado. */
+  leave: (() => Promise<boolean>) | null;
+  setLeave(fn: (() => Promise<boolean>) | null): void;
 };
 
 const Ctx = createContext<Status | null>(null);
@@ -23,6 +26,8 @@ export function AdminStatusProvider({ children }: { children: React.ReactNode })
   const [crumb, setCrumb] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [leave, setLeaveState] = useState<(() => Promise<boolean>) | null>(null);
+  const setLeave = useCallback((fn: (() => Promise<boolean>) | null) => setLeaveState(() => fn), []);
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   const notify = useCallback((msg: string) => {
@@ -33,8 +38,8 @@ export function AdminStatusProvider({ children }: { children: React.ReactNode })
   useEffect(() => () => clearTimeout(timer.current), []);
 
   const value = useMemo(
-    () => ({ dirty, setDirty, crumb, setCrumb, notify, message, menuOpen, setMenuOpen }),
-    [dirty, crumb, notify, message, menuOpen],
+    () => ({ dirty, setDirty, crumb, setCrumb, notify, message, menuOpen, setMenuOpen, leave, setLeave }),
+    [dirty, crumb, notify, message, menuOpen, leave, setLeave],
   );
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

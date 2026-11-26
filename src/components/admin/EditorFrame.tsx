@@ -54,20 +54,33 @@ export default function EditorFrame({ title, editor, autosave, preview, cancel, 
           </div>
         </div>
         {children}
-        {(failed || status === "error") && <ActionError />}
-        {Object.keys(errors).length > 0 && <p role="alert" className="text-sm text-[var(--danger)]">Corrija os campos destacados.</p>}
-        <div className="flex items-center gap-3">
+        {!autosave && failed && <ActionError />}
+        {!autosave && Object.keys(errors).length > 0 && <p role="alert" className="text-sm text-[var(--danger)]">Corrija os campos destacados.</p>}
+        <div className="flex flex-wrap items-center gap-3">
           {autosave ? (
-            <div aria-live="polite" className="flex items-center gap-2 text-sm">
-              {(status === "waiting" || status === "saving") && <span>Salvando…</span>}
+            <div aria-live="polite" className="flex flex-wrap items-center gap-2 text-sm">
+              {status === "waiting" && <span className="text-[var(--muted)]">Alterações pendentes…</span>}
+              {status === "saving" && <span>Salvando…</span>}
               {status === "saved" && (
                 <>
                   <span>Salvo ✓</span>
                   {undo && <button type="button" onClick={undo} className="btn">Desfazer</button>}
                 </>
               )}
-              {status === "invalid" && <span className="text-[var(--danger)]">Corrija os campos destacados</span>}
-              {status === "error" && <button type="button" onClick={() => void submit()} className="btn">Tentar de novo</button>}
+              {status === "invalid" && <span role="alert" className="text-[var(--danger)]">Corrija os campos destacados.</span>}
+              {status === "error" && (
+                <>
+                  <span role="alert" className="text-[var(--danger)]">Sem conexão com o servidor. Tentando de novo…</span>
+                  <button type="button" onClick={() => void submit()} className="btn">Tentar agora</button>
+                </>
+              )}
+              {status === "auth" && (
+                <span role="alert" className="text-[var(--danger)]">
+                  Sua sessão expirou.{" "}
+                  <a href="/admin/login" target="_blank" rel="noopener" className="underline">Entre de novo em outra aba</a>
+                  ; o que você digitou continua aqui e é gravado quando você voltar.
+                </span>
+              )}
             </div>
           ) : (
             <button type="submit" disabled={pending} className="btn btn-primary">{uploading ? "Enviando..." : pending ? "Salvando..." : "Criar"}</button>

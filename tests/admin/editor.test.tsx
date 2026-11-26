@@ -59,7 +59,7 @@ describe("ProfileEditor", () => {
     await wait();
     expect(updateProfile).toHaveBeenCalledTimes(1);
     expect((updateProfile.mock.calls[0][0] as FormData).get("name")).toBe("Beatriz Lima");
-    expect(refresh).toHaveBeenCalled();
+    expect(refresh).not.toHaveBeenCalled(); // a resposta da action já atualiza a tela
     expect(screen.getByText("Salvo ✓")).toBeTruthy();
   });
 
@@ -72,7 +72,7 @@ describe("ProfileEditor", () => {
     await waitFor(() => expect(updateProfile).toHaveBeenCalledTimes(1));
   });
 
-  it("se a action lança, mostra o erro e 'Tentar de novo', e mantém o texto", async () => {
+  it("se a action lança, avisa sem conexão, mantém o texto e 'Tentar agora' grava de novo", async () => {
     updateProfile.mockRejectedValueOnce(new Error("x"));
     vi.useFakeTimers();
     wrap(<ProfileEditor row={profileRow} />);
@@ -80,7 +80,8 @@ describe("ProfileEditor", () => {
     await wait();
     expect(screen.getAllByRole("alert").length).toBeGreaterThan(0);
     expect((screen.getByLabelText("Nome") as HTMLInputElement).value).toBe("Beatriz Lima");
-    fireEvent.click(screen.getByRole("button", { name: "Tentar de novo" }));
+    expect(screen.getByText(/Sem conexão com o servidor/)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Tentar agora" }));
     await wait(0);
     expect(updateProfile).toHaveBeenCalledTimes(2);
   });
@@ -148,7 +149,7 @@ describe("ItemEditor existente", () => {
     await wait();
     expect(saveItem).toHaveBeenCalledTimes(1);
     expect((saveItem.mock.calls[0][1] as FormData).get("title")).toBe("Novo título");
-    expect(refresh).toHaveBeenCalled();
+    expect(refresh).not.toHaveBeenCalled();
     expect(push).not.toHaveBeenCalled();
     expect(screen.getByText("Salvo ✓")).toBeTruthy();
     expect(screen.getByRole("button", { name: "Desfazer" })).toBeTruthy();
@@ -171,28 +172,36 @@ describe("ItemEditor existente", () => {
     type("Título", "x");
     await wait();
     expect(screen.getByText("Título: campo obrigatório")).toBeTruthy();
-    expect(screen.getByText("Corrija os campos destacados")).toBeTruthy();
+    expect(screen.getByText("Corrija os campos destacados.")).toBeTruthy();
   });
 
   it("Voltar grava a edição pendente antes de navegar", async () => {
     vi.useFakeTimers();
     wrap(<ItemEditor kind="project" row={project} base="/admin/projetos" />);
     type("Título", "Pendente");
-    fireEvent.click(screen.getByRole("button", { name: "Voltar" }));
+    fireEvent.click(screen.getByRole("link", { name: "Voltar" }));
     await wait(0);
     expect(saveItem).toHaveBeenCalledTimes(1);
     expect(push).toHaveBeenCalledWith("/admin/projetos");
   });
 
-  it("Voltar não sai quando a gravação falha (o texto não se perde)", async () => {
+  it("Voltar com gravação recusada pergunta; recusar fica, aceitar sai sem salvar", async () => {
     saveItem.mockResolvedValue({ errors: { title: "Título: campo obrigatório" } });
+    const confirmFn = vi.fn(() => false);
+    vi.stubGlobal("confirm", confirmFn);
     vi.useFakeTimers();
     wrap(<ItemEditor kind="project" row={project} base="/admin/projetos" />);
     type("Título", "x");
-    fireEvent.click(screen.getByRole("button", { name: "Voltar" }));
+    fireEvent.click(screen.getByRole("link", { name: "Voltar" }));
     await wait(0);
     expect(saveItem).toHaveBeenCalledTimes(1);
+    expect(confirmFn).toHaveBeenCalledWith("Há alterações não salvas. Sair mesmo assim?");
     expect(push).not.toHaveBeenCalled();
+    confirmFn.mockReturnValue(true);
+    fireEvent.click(screen.getByRole("link", { name: "Voltar" }));
+    await wait(0);
+    expect(push).toHaveBeenCalledWith("/admin/projetos");
+    vi.unstubAllGlobals();
   });
 
   it("Desfazer grava de novo a versão anterior", async () => {
@@ -224,7 +233,7 @@ describe("ItemEditor novo", () => {
   it("tem 'Cancelar' e não tem 'Voltar'", () => {
     wrap(<ItemEditor kind="project" row={null} base="/admin/projetos" />);
     expect(screen.getByText("Cancelar")).toBeTruthy();
-    expect(screen.queryByRole("button", { name: "Voltar" })).toBeNull();
+    expect(screen.queryByRole("link", { name: "Voltar" })).toBeNull();
   });
 
   it("guarda a imagem até o Criar", async () => {

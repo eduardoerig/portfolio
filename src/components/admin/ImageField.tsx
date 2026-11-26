@@ -1,5 +1,6 @@
 "use client";
 import { useId, useRef, useState } from "react";
+import { shrinkImage } from "@/lib/shrinkImage";
 import { checkFileSize } from "@/lib/uploadLimits";
 
 // Campo de imagem só de apresentação: miniatura + Trocar/Remover, ou área para arrastar/escolher.
@@ -17,12 +18,13 @@ export default function ImageField({ label, hint, url, busy, error, onPick, onRe
   const [sizeError, setSizeError] = useState<string | null>(null);
   const [over, setOver] = useState(false);
 
-  function pick(f: File | undefined) {
+  async function pick(f: File | undefined) {
     if (input.current) input.current.value = ""; // permite escolher o mesmo arquivo de novo
     if (!f) return;
-    const tooBig = checkFileSize(f, "image");
+    const small = await shrinkImage(f);
+    const tooBig = checkFileSize(small, "image");
     setSizeError(tooBig);
-    if (!tooBig) onPick(f);
+    if (!tooBig) onPick(small);
   }
 
   const open = () => input.current?.click();
@@ -32,7 +34,7 @@ export default function ImageField({ label, hint, url, busy, error, onPick, onRe
       className="flex flex-col gap-1 text-sm"
       onDragOver={(e) => { e.preventDefault(); setOver(true); }}
       onDragLeave={() => setOver(false)}
-      onDrop={(e) => { e.preventDefault(); setOver(false); if (!busy) pick(e.dataTransfer.files[0]); }}
+      onDrop={(e) => { e.preventDefault(); setOver(false); if (!busy) void pick(e.dataTransfer.files[0]); }}
     >
       <label htmlFor={id}>{label}</label>
       <input
@@ -42,7 +44,7 @@ export default function ImageField({ label, hint, url, busy, error, onPick, onRe
         accept="image/jpeg,image/png,image/webp"
         className="hidden"
         disabled={busy}
-        onChange={(e) => pick(e.target.files?.[0])}
+        onChange={(e) => void pick(e.target.files?.[0])}
       />
       {url ? (
         <div className={`flex flex-col items-start gap-2 rounded-lg border border-dashed bg-[var(--surface)] p-3 ${over ? "border-[var(--accent)]" : "border-[var(--border)]"}`}>

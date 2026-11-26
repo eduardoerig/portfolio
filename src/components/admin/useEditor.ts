@@ -15,15 +15,50 @@ type Options = {
   onSaved: () => void;
   autosave: boolean; // item existente e perfil gravam sozinhos; item novo espera o "Criar"
 };
-export type SaveStatus = "idle" | "waiting" | "saving" | "saved" | "invalid" | "error";
+// auth = sessão venceu; error = sem conexão ou falha do servidor (tenta de novo sozinho)
+export type SaveStatus = "idle" | "waiting" | "saving" | "saved" | "invalid" | "error" | "auth";
 
 const DELAY = 800; // pausa na digitação antes de gravar
+const RETRY = [3000, 10_000, 30_000]; // novas tentativas depois de uma falha de conexão
 const pathOf = (d: Draft, name: string) => String(d[`${name}Path`] ?? "");
+
+// Rascunho ainda não gravado fica no navegador (aba fechada, sessão vencida) e volta ao reabrir o item.
+const storageKey = (kind: string, row: Record<string, unknown> | null) => `admin-draft:${kind}:${String(row?.id ?? "novo")}`;
+function readStored(key: string): Draft | null {
+  try {
+    const raw = sessionStorage.getItem(key);
+    return raw ? (JSON.parse(raw) as Draft) : null;
+  } catch {
+    return null;
+  }
+}
+function writeStored(key: string, draft: Draft | null) {
+  try {
+    if (draft) sessionStorage.setItem(key, JSON.stringify(draft));
+    else sessionStorage.removeItem(key);
+  } catch {
+    /* navegador sem armazenamento: só perde a cópia de segurança */
+  }
+}
+
+// Campo de texto do formulário com foco e vazio: a pessoa está reescrevendo, não é hora de acusar erro.
+function editingEmptyField(draft: Draft): boolean {
+  if (typeof document === "undefined") return false;
+  const el = document.activeElement;
+  if (!(el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement)) return false;
+  return el.name in draft && el.value.trim() === "";
+}
 
 // Estado do editor: rascunho, imagens, idioma, gravação (sozinha ou no "Criar") e avisos de saída.
 export function useEditor({ kind, row, save, onSaved, autosave }: Options) {
-  const { setDirty } = useAdminStatus();
-  const [draft, setDraftState] = useState<Draft>(() => rowToDraft(row, kind));
+  const { setDirty, setLeave } = useAdminStatus();
+  const key = storageKey(kind, row);
+  const [restored] = useState(() => {
+    if (!autosave) return null;
+    const stored = readStored(key);
+    return stored && JSON.stringify(stored) !== JSON.stringify(rowToDraft(row, kind)) ? stored : null;
+  });
+  const [draft, setDraftState] = useState<Draft>(() => restored ?? rowToDraft(row, kind));
   const [locale, setLocale] = useState<Locale>("pt");
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [failed, setFailed] = useState(false);
@@ -45,6 +80,8 @@ export function useEditor({ kind, row, save, onSaved, autosave }: Options) {
   const again = useRef(false); // pediram outro salvamento durante o atual
   const locked = useRef(false); // item novo criado: trava até a tela trocar, senão um segundo envio criaria outro item
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const held = useRef(false); // gravação adiada até sair do campo vazio
+  const tries = useRef(0); // falhas de conexão seguidas
   const localeRef = useRef(locale);
   localeRef.current = locale;
 
@@ -97,6 +134,11 @@ export function useEditor({ kind, row, save, onSaved, autosave }: Options) {
       }
       // 2) O formulário leva só as chaves.
       const result = await save(draftToFormData(sent, keys, sentRemoved));
+      if (result.unauthorized) {
+        setFailed(false);
+        setStatus("auth"); // nada muda no rascunho: grava quando a pessoa entrar de novo
+        return false;
+      }
       // Salvar falhou: o servidor pode ter apagado um arquivo recusado, então o próximo envio manda de novo.
       if (!result.ok) uploaded.current = new WeakMap();
       const errs = result.errors ?? {};
@@ -121,9 +163,11 @@ export function useEditor({ kind, row, save, onSaved, autosave }: Options) {
       removed.current = removed.current.filter((n) => !sentRemoved.includes(n));
       for (const name of Object.keys(sentRestore)) delete restore.current[name];
       savedAt.current = at;
+      tries.current = 0;
       if (edits.current === at) {
         setLocalDirty(false);
         setDirty(false);
+        if (autosave) writeStored(key, null);
       }
       setStatus(timer.current || again.current ? "waiting" : "saved");
       if (row === null) locked.current = true;
@@ -177,10 +221,13 @@ export function useEditor({ kind, row, save, onSaved, autosave }: Options) {
   const later = () => {
     if (!autosave) return;
     cancelTimer();
+    held.current = false;
     setStatus("waiting");
     timer.current = setTimeout(() => {
       timer.current = null;
-      void run();
+      // Apagou o campo para reescrever: espera sair dele (o focusout chama later de novo).
+      if (editingEmptyField(draftRef.current)) held.current = true;
+      else void run();
     }, DELAY);
   };
   const now = () => {
@@ -189,6 +236,13 @@ export function useEditor({ kind, row, save, onSaved, autosave }: Options) {
 
   const set = (name: string, value: string | boolean | string[]) => {
     setDraft((d) => ({ ...d, [name]: value }));
+    // Mexeu no campo: o erro dele sai; os outros ficam até a próxima gravação.
+    setErrors((e) => {
+      if (!(name in e)) return e;
+      const next = { ...e };
+      delete next[name];
+      return next;
+    });
     touch();
     later();
   };
@@ -245,8 +299,49 @@ export function useEditor({ kind, row, save, onSaved, autosave }: Options) {
   const imageUrl = (name: string) => urls[name] ?? fileUrl(pathOf(draft, name));
 
   // Ctrl+S / Cmd+S e a saída usam sempre as funções mais recentes.
-  const latest = useRef({ flush, timerOn: () => timer.current !== null });
-  latest.current = { flush, timerOn: () => timer.current !== null };
+  const latest = useRef({ flush, submit, later, timerOn: () => timer.current !== null });
+  latest.current = { flush, submit, later, timerOn: () => timer.current !== null };
+
+  // Links do painel gravam o pendente antes de sair (GuardedLink).
+  useEffect(() => {
+    if (!autosave) return;
+    setLeave(() => latest.current.flush());
+    return () => setLeave(null);
+  }, [autosave, setLeave]);
+
+  // Cópia de segurança do que ainda não foi gravado; volta e grava ao reabrir o item.
+  useEffect(() => {
+    if (autosave && dirty) writeStored(key, draft);
+  }, [autosave, dirty, draft, key]);
+  useEffect(() => {
+    if (!restored) return;
+    touch();
+    latest.current.later();
+  }, [restored, touch]);
+
+  // Saiu do campo vazio que segurava a gravação.
+  useEffect(() => {
+    const onOut = () => {
+      if (held.current) setTimeout(() => latest.current.later(), 0); // depois do foco sair de vez
+    };
+    document.addEventListener("focusout", onOut);
+    return () => document.removeEventListener("focusout", onOut);
+  }, []);
+
+  // Falhou: tenta de novo quando a internet volta, ao voltar para a aba (login feito em outra) e, sem
+  // conexão, sozinho depois de alguns segundos.
+  useEffect(() => {
+    if (!autosave || (status !== "error" && status !== "auth")) return;
+    const retry = () => void latest.current.submit();
+    window.addEventListener("online", retry);
+    window.addEventListener("focus", retry);
+    const t = status === "error" ? setTimeout(retry, RETRY[Math.min(tries.current++, RETRY.length - 1)]) : undefined;
+    return () => {
+      window.removeEventListener("online", retry);
+      window.removeEventListener("focus", retry);
+      clearTimeout(t);
+    };
+  }, [autosave, status]);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") {

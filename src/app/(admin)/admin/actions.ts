@@ -10,7 +10,10 @@ import { deleteObject, headObject, listObjects, presignPut } from "@/lib/storage
 import { isStoredKey, newKey, validateUpload, type UploadKind } from "@/lib/uploads";
 
 // Resultado dos formulários: erros por campo, em português, para mostrar ao lado do campo.
-export type FormState = { ok?: boolean; errors?: Record<string, string> };
+export type FormState = { ok?: boolean; errors?: Record<string, string>; unauthorized?: true };
+
+// Gravar do editor: sessão vencida volta como resposta (o painel avisa e guarda o texto) em vez de erro.
+const authorized = () => requireAdmin().then(() => true, () => false);
 
 // ---------- Validação (zod) ----------
 // Todos os campos chegam do FormData como texto; checkbox desmarcado simplesmente não vem.
@@ -223,7 +226,7 @@ export async function cleanStorage(): Promise<{ removed: number; freedBytes: num
 }
 
 export async function updateProfile(form: FormData): Promise<FormState> {
-  await requireAdmin();
+  if (!(await authorized())) return { unauthorized: true };
   const parsed = parse(profileSchema, form);
   const current = await db.profile.findUniqueOrThrow({ where: { id: 1 } });
   const up = await readUploads(form, [
@@ -241,7 +244,7 @@ export async function updateProfile(form: FormData): Promise<FormState> {
 }
 
 export async function saveItem(kind: Kind, form: FormData): Promise<FormState> {
-  await requireAdmin();
+  if (!(await authorized())) return { unauthorized: true };
   assertKind(kind);
   const parsed = parse(itemSchemas[kind], form);
   const id = Number(form.get("id"));

@@ -28,12 +28,13 @@ export default function ItemEditor({ kind, row, base, siblings }: Props) {
     row,
     save: (fd) => saveItem(kind, fd),
     autosave: !isNew,
+    // Gravação sozinha não recarrega o painel (a resposta da action já atualiza a tela); item novo
+    // muda as contagens do menu.
     onSaved: () => {
-      router.refresh(); // contagens do menu
-      if (isNew) {
-        notify("Salvo ✓");
-        router.push(base); // volta à lista (e evita salvar duas vezes um item novo)
-      }
+      if (!isNew) return;
+      notify("Salvo ✓");
+      router.refresh();
+      router.push(base); // volta à lista (e evita salvar duas vezes um item novo)
     },
   });
   const { draft, set, errors, locale } = ed;
@@ -54,13 +55,7 @@ export default function ItemEditor({ kind, row, base, siblings }: Props) {
       editor={ed}
       autosave={!isNew}
       preview={<Preview kind={kind} draft={draft} locale={locale} fileUrl={ed.imageUrl("image")} siblings={siblings?.[locale]} />}
-      cancel={
-        isNew ? (
-          <GuardedLink href={base} className="btn">Cancelar</GuardedLink>
-        ) : (
-          <button type="button" className="btn" onClick={async () => { if (await ed.flush()) router.push(base); }}>Voltar</button>
-        )
-      }
+      cancel={<GuardedLink href={base} className="btn">{isNew ? "Cancelar" : "Voltar"}</GuardedLink>}
     >
       {kind === "project" && (
         <>
@@ -71,7 +66,7 @@ export default function ItemEditor({ kind, row, base, siblings }: Props) {
           <Tr editor={ed} label="Métrica (opcional)" name="metric" />
           <ImageField
             label="Imagem (opcional)"
-            hint="JPG, PNG ou WebP, até 3 MB."
+            hint="JPG, PNG ou WebP. Fotos grandes são reduzidas automaticamente."
             url={ed.imageUrl("image")}
             busy={ed.uploading || ed.status === "saving"}
             onPick={(f) => ed.pickImage("image", f)}

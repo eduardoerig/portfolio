@@ -146,9 +146,18 @@ describe("deleteItem e autorização", () => {
     expect(await db.project.findUnique({ where: { id: 3 } })).not.toBeNull();
   });
 
+  // Gravar do editor: devolve "sem sessão" em vez de estourar, para o painel avisar sem perder o que foi digitado.
   it.each([
     ["updateProfile", () => actions.updateProfile(uploadForm({ name: "Hacker", photoKey: `${crypto.randomUUID()}.png` }))],
     ["saveItem", () => actions.saveItem("project", uploadForm({ id: "", title: "Hack", description: "D", imageKey: `${crypto.randomUUID()}.png` }))],
+  ])("%s sem admin devolve unauthorized e não muda nada", async (_nome, chamar) => {
+    const antes = await snapshot();
+    requireAdmin.mockRejectedValue(new Error("Não autorizado"));
+    expect(await chamar()).toEqual({ unauthorized: true });
+    expect(await snapshot()).toEqual(antes);
+  });
+
+  it.each([
     ["deleteItem", () => actions.deleteItem("project", 1)],
     ["toggleVisible", () => actions.toggleVisible("project", 1)],
     ["move", () => actions.move("project", 1, "down")],

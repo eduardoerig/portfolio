@@ -5,6 +5,7 @@ import ItemCard from "@/components/admin/ItemCard";
 import RowActions from "@/components/admin/RowActions";
 
 const deleteItem = vi.fn();
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
 vi.mock("@/app/(admin)/admin/actions", () => ({
   deleteItem: (...a: unknown[]) => deleteItem(...a),
   move: vi.fn(),

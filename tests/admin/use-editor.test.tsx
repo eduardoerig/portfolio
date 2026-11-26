@@ -212,3 +212,94 @@ describe("useEditor sem autosave (item novo)", () => {
     expect(save).toHaveBeenCalledTimes(1);
   });
 });
+
+describe("useEditor: onda 1 (erros, sessão, conexão, rascunho)", () => {
+  afterEach(() => {
+    sessionStorage.clear();
+    document.body.innerHTML = "";
+  });
+
+  it("campo vazio com foco não grava; grava ao sair dele", async () => {
+    const input = document.createElement("input");
+    input.name = "title";
+    document.body.append(input);
+    input.focus();
+    const { result, save } = setup();
+    act(() => result.current.e.set("title", ""));
+    await wait(2000);
+    expect(save).not.toHaveBeenCalled();
+    act(() => input.blur());
+    await wait(800);
+    expect(save).toHaveBeenCalledTimes(1);
+  });
+
+  it("editar um campo tira o erro dele", async () => {
+    const { result, save } = setup();
+    save.mockResolvedValueOnce({ errors: { title: "Campo obrigatório", description: "x" } });
+    act(() => result.current.e.set("title", ""));
+    await wait(800);
+    expect(result.current.e.errors.title).toBe("Campo obrigatório");
+    act(() => result.current.e.set("title", "B"));
+    expect(result.current.e.errors.title).toBeUndefined();
+    expect(result.current.e.errors.description).toBe("x");
+  });
+
+  it("sessão expirada: status 'auth' e grava de novo ao voltar para a aba", async () => {
+    const { result, save } = setup();
+    save.mockResolvedValueOnce({ unauthorized: true });
+    act(() => result.current.e.set("title", "B"));
+    await wait(800);
+    expect(result.current.e.status).toBe("auth");
+    expect(result.current.s.dirty).toBe(true);
+    act(() => void window.dispatchEvent(new Event("focus")));
+    await wait(0);
+    expect(save).toHaveBeenCalledTimes(2);
+    expect(result.current.e.status).toBe("saved");
+  });
+
+  it("sem conexão: tenta de novo quando a internet volta", async () => {
+    const { result, save } = setup();
+    save.mockRejectedValueOnce(new Error("offline"));
+    act(() => result.current.e.set("title", "B"));
+    await wait(800);
+    expect(result.current.e.status).toBe("error");
+    act(() => void window.dispatchEvent(new Event("online")));
+    await wait(0);
+    expect(save).toHaveBeenCalledTimes(2);
+    expect(result.current.e.status).toBe("saved");
+  });
+
+  it("sem conexão: tenta de novo sozinho depois de alguns segundos", async () => {
+    const { result, save } = setup();
+    save.mockRejectedValueOnce(new Error("offline"));
+    act(() => result.current.e.set("title", "B"));
+    await wait(800);
+    expect(save).toHaveBeenCalledTimes(1);
+    await wait(10_000);
+    expect(save).toHaveBeenCalledTimes(2);
+    expect(result.current.e.status).toBe("saved");
+  });
+
+  it("o que não foi gravado fica no navegador e volta ao reabrir o item", async () => {
+    const first = setup();
+    first.save.mockRejectedValue(new Error("offline"));
+    act(() => first.result.current.e.set("title", "Não perdi"));
+    await wait(800);
+    first.unmount();
+    const again = setup();
+    expect(again.result.current.e.draft.title).toBe("Não perdi");
+    await wait(800);
+    expect(again.save).toHaveBeenCalledTimes(1);
+    expect(again.sent(0).get("title")).toBe("Não perdi");
+    expect(sessionStorage.length).toBe(0); // gravou: some do navegador
+  });
+
+  it("registra a saída que grava antes (usada pelos links do painel)", async () => {
+    const { result, save } = setup();
+    act(() => result.current.e.set("title", "B"));
+    let ok: boolean | undefined;
+    await act(async () => void (ok = await result.current.s.leave!()));
+    expect(save).toHaveBeenCalledTimes(1);
+    expect(ok).toBe(true);
+  });
+});

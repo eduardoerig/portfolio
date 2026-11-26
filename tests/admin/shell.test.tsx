@@ -7,9 +7,10 @@ import Sidebar from "@/components/admin/Sidebar";
 import ThemeToggle from "@/components/ThemeToggle";
 import Toast from "@/components/admin/Toast";
 
+const push = vi.fn();
 vi.mock("next/navigation", () => ({
   usePathname: () => "/admin/projetos",
-  useRouter: () => ({ push: vi.fn() }),
+  useRouter: () => ({ push }),
 }));
 vi.mock("@/app/(admin)/admin/login/actions", () => ({ logout: vi.fn() }));
 
@@ -99,6 +100,36 @@ describe("painel: estrutura", () => {
     act(() => ctx.setDirty(true));
     expect(fireEvent.click(link)).toBe(false); // preventDefault
     expect(confirmFn).toHaveBeenCalledWith("Há alterações não salvas. Sair mesmo assim?");
+    vi.unstubAllGlobals();
+  });
+
+  it("GuardedLink com salvar sozinho: grava antes de sair e só pergunta se não conseguiu", async () => {
+    let ctx!: ReturnType<typeof useAdminStatus>;
+    const confirmFn = vi.fn(() => true);
+    vi.stubGlobal("confirm", confirmFn);
+    push.mockClear();
+    render(
+      <AdminStatusProvider>
+        <Setter onCtx={(c) => (ctx = c)} />
+        <GuardedLink href="/admin/projetos">voltar</GuardedLink>
+      </AdminStatusProvider>,
+    );
+    const link = screen.getByRole("link", { name: "voltar" });
+    const leave = vi.fn(async () => true);
+    act(() => {
+      ctx.setLeave(leave);
+      ctx.setDirty(true);
+    });
+    expect(fireEvent.click(link)).toBe(false);
+    await waitFor(() => expect(push).toHaveBeenCalledWith("/admin/projetos"));
+    expect(confirmFn).not.toHaveBeenCalled();
+
+    // não gravou (campo inválido ou sem conexão): pergunta, e sair descarta
+    push.mockClear();
+    leave.mockResolvedValue(false);
+    fireEvent.click(link);
+    await waitFor(() => expect(confirmFn).toHaveBeenCalledWith("Há alterações não salvas. Sair mesmo assim?"));
+    expect(push).toHaveBeenCalledWith("/admin/projetos");
     vi.unstubAllGlobals();
   });
 

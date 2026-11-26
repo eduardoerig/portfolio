@@ -1,6 +1,5 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { updateProfile } from "@/app/(admin)/admin/actions";
 import { Check, Field } from "./controls";
 import EditorFrame, { Tr } from "./EditorFrame";
@@ -16,13 +15,12 @@ const CV_LINKS = [
 ] as const;
 
 export default function ProfileEditor({ row }: { row: Record<string, unknown> }) {
-  const router = useRouter();
   const ed = useEditor({
     kind: "profile",
     row,
     save: updateProfile,
     autosave: true,
-    onSaved: () => router.refresh(),
+    onSaved: () => {}, // a resposta da action já atualiza a tela (nome e foto no topo)
   });
   const { draft, set, errors, locale } = ed;
   const text = (name: string, label: string) => (
@@ -40,7 +38,7 @@ export default function ProfileEditor({ row }: { row: Record<string, unknown> })
       <Check label="Aberto a oportunidades" name="openToWork" checked={draft.openToWork === true} onChange={(b) => set("openToWork", b)} />
       <ImageField
         label="Foto"
-        hint="JPG, PNG ou WebP, até 3 MB."
+        hint="JPG, PNG ou WebP. Fotos grandes são reduzidas automaticamente."
         url={ed.imageUrl("photo")}
         busy={ed.uploading || ed.status === "saving"}
         onPick={(f) => ed.pickImage("photo", f)}
