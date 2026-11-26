@@ -10,6 +10,13 @@ import Preview from "./Preview";
 import { useEditor } from "./useEditor";
 import { useObjectUrl } from "./useObjectUrl";
 
+const CV_LINKS = [
+  ["/curriculo.pdf", "PT"],
+  ["/curriculo.pdf?modelo=simples", "PT simples"],
+  ["/en/resume.pdf", "EN"],
+  ["/en/resume.pdf?modelo=simples", "EN simples"],
+] as const;
+
 export default function ProfileEditor({ row }: { row: Record<string, unknown> }) {
   const router = useRouter();
   const { notify } = useAdminStatus();
@@ -48,17 +55,20 @@ export default function ProfileEditor({ row }: { row: Record<string, unknown> })
         error={errors.photo}
         hint="JPG, PNG ou WebP, até 3 MB."
       />
-      <Dropzone
-        label="Currículo (PDF)"
-        name="cv"
-        accept="application/pdf"
-        kind="pdf"
-        currentUrl={currentUrl("cv")}
-        onFile={(f) => setFile("cv", f)}
-        onRemove={(b) => setRemoved("cv", b)}
-        error={errors.cv}
-        hint="PDF, até 5 MB."
-      />
+      <fieldset className="flex flex-col gap-4 border-t border-[var(--border)] pt-4">
+        <legend className="label pr-2">Currículo (gerado a partir deste painel)</legend>
+        {text("fullName", "Nome completo (currículo)")}
+        <Tr editor={ed} label="Cidade" name="location" />
+        {text("phone", "Telefone (só no PDF)")}
+        <Tr editor={ed} label="Frase final do currículo" name="cvClosing" multiline hint="Vai no fim do resumo. Trecho entre ** sai em negrito." />
+        <div className="flex flex-wrap gap-2">
+          {CV_LINKS.map(([href, label]) => (
+            <a key={href} href={href} target="_blank" rel="noopener" className="btn">
+              Ver PDF · {label}
+            </a>
+          ))}
+        </div>
+      </fieldset>
     </EditorFrame>
   );
 }

@@ -27,7 +27,6 @@ async function main() {
     githubUrl: p.githubUrl,
     linkedinUrl: p.linkedinUrl,
     photoPath: p.photoPath,
-    cvPath: p.cvPath,
   };
   await db.profile.upsert({ where: { id: 1 }, update: profileData, create: { id: 1, ...profileData } });
 

@@ -30,6 +30,7 @@ const pt = {
     badge: "aberto a oportunidades",
     photoAlt: "Foto de",
     downloadCv: "Baixar currículo",
+    cvHref: "/curriculo.pdf", // gerado na hora a partir do banco
     scrollHint: "scroll ↓",
   },
   sections: {
@@ -95,6 +96,7 @@ const en: Dictionary = {
     badge: "open to opportunities",
     photoAlt: "Photo of",
     downloadCv: "Download résumé",
+    cvHref: "/en/resume.pdf",
     scrollHint: "scroll ↓",
   },
   sections: {

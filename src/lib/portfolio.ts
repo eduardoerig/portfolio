@@ -27,7 +27,6 @@ export async function getPortfolio(locale: Locale): Promise<Portfolio> {
       githubUrl: profile.githubUrl,
       linkedinUrl: profile.linkedinUrl,
       photoPath: fileUrl(profile.photoPath),
-      cvPath: fileUrl(profile.cvPath),
     },
     projects: projects.map((p) => ({
       id: p.id,

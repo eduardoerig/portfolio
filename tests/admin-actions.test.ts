@@ -210,24 +210,32 @@ describe("uploads nas actions (por chave)", () => {
     }
   });
 
-  it("salva foto e currículo pela chave; a troca apaga a antiga", async () => {
+  it("salva a foto pela chave; a troca apaga a antiga; currículo enviado é ignorado", async () => {
     const photo = put("png", "image/png");
     const cv = put("pdf", "application/pdf");
     expect((await actions.updateProfile(form({ ...base, photoKey: photo, cvKey: cv }))).errors).toBeUndefined();
     const first = await db.profile.findUniqueOrThrow({ where: { id: 1 } });
-    expect([first.photoPath, first.cvPath]).toEqual([photo, cv]);
+    expect([first.photoPath, first.cvPath]).toEqual([photo, null]);
 
     const photo2 = put("webp", "image/webp");
     await actions.updateProfile(form({ ...base, photoKey: photo2 }));
-    const second = await db.profile.findUniqueOrThrow({ where: { id: 1 } });
-    expect(second.photoPath).toBe(photo2);
-    expect(second.cvPath).toBe(cv);
+    expect((await db.profile.findUniqueOrThrow({ where: { id: 1 } })).photoPath).toBe(photo2);
     expect(bucket.has(photo)).toBe(false);
 
-    await actions.updateProfile(form({ ...base, remove_photo: "on", remove_cv: "on" }));
-    const third = await db.profile.findUniqueOrThrow({ where: { id: 1 } });
-    expect([third.photoPath, third.cvPath]).toEqual([null, null]);
-    expect(bucket.has(photo2) || bucket.has(cv)).toBe(false);
+    await actions.updateProfile(form({ ...base, remove_photo: "on" }));
+    expect((await db.profile.findUniqueOrThrow({ where: { id: 1 } })).photoPath).toBeNull();
+    expect(bucket.has(photo2)).toBe(false);
+  });
+
+  it("salva os campos do currículo; inglês vazio vira null", async () => {
+    const r = await actions.updateProfile(
+      form({ ...base, fullName: "Eduardo Felipe Storck Erig", location: "Marechal Cândido Rondon, PR", phone: "+55 45 99985-1160", cvClosing: "**Aberto** a vagas", cvClosingEn: "" }),
+    );
+    expect(r.errors).toBeUndefined();
+    const p = await db.profile.findUniqueOrThrow({ where: { id: 1 } });
+    expect([p.fullName, p.location, p.phone, p.cvClosing, p.cvClosingEn, p.locationEn]).toEqual([
+      "Eduardo Felipe Storck Erig", "Marechal Cândido Rondon, PR", "+55 45 99985-1160", "**Aberto** a vagas", null, null,
+    ]);
   });
 
   it("chave forjada é recusada sem consultar nem apagar nada", async () => {
@@ -266,13 +274,12 @@ describe("uploads nas actions (por chave)", () => {
 
   it("chave que já está em uso não é apagada nem duplicada", async () => {
     const photo = put("png", "image/png");
-    const cv = put("pdf", "application/pdf");
-    await actions.updateProfile(form({ ...base, photoKey: photo, cvKey: cv }));
+    await actions.updateProfile(form({ ...base, photoKey: photo }));
 
-    // currículo em uso mandado como imagem de projeto: recusa sem apagar o currículo
-    const r = await actions.saveItem("project", form({ id: "1", title: "Requests", description: "D", imageKey: cv }));
+    // foto em uso mandada como imagem de projeto: recusa sem apagar a foto
+    const r = await actions.saveItem("project", form({ id: "1", title: "Requests", description: "D", imageKey: photo }));
     expect(r.errors?.image).toBe("Arquivo inválido");
-    expect(bucket.has(cv)).toBe(true);
+    expect(bucket.has(photo)).toBe(true);
 
     // mesma foto de novo: continua salva e não some do bucket
     await actions.updateProfile(form({ ...base, photoKey: photo }));

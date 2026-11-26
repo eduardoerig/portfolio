@@ -51,9 +51,7 @@ export default function Hero({ profile, dict }: { profile: Profile; dict: Dictio
       <p className="hero-fade max-w-[60ch] leading-relaxed text-muted" style={delay(680)}>{profile.summary}</p>
 
       <div className="hero-fade flex flex-wrap justify-center gap-3" style={delay(760)}>
-        {profile.cvPath && (
-          <a href={profile.cvPath} download className="btn btn-primary">{dict.hero.downloadCv}</a>
-        )}
+        <a href={dict.hero.cvHref} download className="btn btn-primary">{dict.hero.downloadCv}</a>
         <a href={profile.githubUrl} target="_blank" rel="noopener noreferrer" className="btn gap-2">
           <GithubIcon size={18} /> GitHub
         </a>

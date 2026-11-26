@@ -13,7 +13,8 @@ export const BOOL_FIELDS = ["visible", "current", "openToWork"];
 
 // Os campos que a action de cada kind lê (ver os schemas em actions.ts).
 const FIELDS: Record<EditorKind, string[]> = {
-  profile: ["name", "role", "roleEn", "summary", "summaryEn", "email", "githubUrl", "linkedinUrl", "openToWork"],
+  profile: ["name", "role", "roleEn", "summary", "summaryEn", "email", "githubUrl", "linkedinUrl", "openToWork",
+    "fullName", "location", "locationEn", "phone", "cvClosing", "cvClosingEn"],
   project: ["title", "titleEn", "description", "descriptionEn", "stack", "stackEn", "url", "metric", "metricEn", "visible"],
   experience: ["role", "roleEn", "company", "location", "locationEn", "period", "periodEn", "bullets", "bulletsEn", "current", "visible"],
   skill: ["name", "nameEn", "group", "groupEn", "level", "visible"],
@@ -66,7 +67,6 @@ export function profilePreview(d: Draft, locale: Locale, photoUrl?: string | nul
     githubUrl: str(d, "githubUrl"),
     linkedinUrl: str(d, "linkedinUrl"),
     photoPath: photoUrl ?? fileUrl(strOrNull(d, "photoPath")),
-    cvPath: fileUrl(strOrNull(d, "cvPath")),
   };
 }
 

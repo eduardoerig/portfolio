@@ -71,7 +71,7 @@ export function useEditor({ kind, row, save, onSaved }: Options) {
           keys[name] = known;
           continue;
         }
-        const up = await uploadFile(file, name === "cv" ? "pdf" : "image");
+        const up = await uploadFile(file, "image");
         if (up.ok) {
           uploaded.current.set(file, up.key);
           keys[name] = up.key;

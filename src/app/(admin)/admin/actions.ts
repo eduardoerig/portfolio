@@ -47,6 +47,13 @@ const profileSchema = z.object({
   githubUrl: url,
   linkedinUrl: url,
   openToWork: checkbox,
+  // Só no currículo em PDF.
+  fullName: optional,
+  location: optional,
+  locationEn: optional,
+  phone: optional,
+  cvClosing: optional,
+  cvClosingEn: optional,
 });
 
 const itemSchemas = {
@@ -161,7 +168,7 @@ async function readUploads(form: FormData, slots: Slot[]): Promise<UploadResult>
 
 async function isReferenced(key: string): Promise<boolean> {
   const [profiles, projects] = await Promise.all([
-    db.profile.count({ where: { OR: [{ photoPath: key }, { cvPath: key }] } }),
+    db.profile.count({ where: { photoPath: key } }),
     db.project.count({ where: { imagePath: key } }),
   ]);
   return profiles + projects > 0;
@@ -205,7 +212,6 @@ export async function updateProfile(form: FormData): Promise<FormState> {
   const current = await db.profile.findUniqueOrThrow({ where: { id: 1 } });
   const up = await readUploads(form, [
     { field: "photo", column: "photoPath", kind: "image", current: current.photoPath },
-    { field: "cv", column: "cvPath", kind: "pdf", current: current.cvPath },
   ]);
   // Erros do formulário e dos arquivos aparecem juntos.
   const errors = { ...("errors" in parsed ? parsed.errors : {}), ...("errors" in up ? up.errors : {}) };

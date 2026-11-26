@@ -7,7 +7,6 @@ export type Profile = {
   githubUrl: string;
   linkedinUrl: string;
   photoPath: string | null;
-  cvPath: string | null;
 };
 
 export type Project = {

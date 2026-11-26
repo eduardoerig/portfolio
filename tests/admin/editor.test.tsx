@@ -34,6 +34,7 @@ afterEach(cleanup);
 const profileRow = {
   id: 1, name: "Ana", role: "Desenvolvedora", roleEn: "Developer", summary: "Resumo", summaryEn: "",
   email: "a@x.dev", githubUrl: "https://g", linkedinUrl: "https://l", openToWork: false, photoPath: null, cvPath: null,
+  fullName: null, location: null, locationEn: null, phone: null, cvClosing: null, cvClosingEn: null,
 };
 const wrap = (ui: React.ReactNode) => render(<AdminStatusProvider>{ui}</AdminStatusProvider>);
 const type = (label: string, value: string) => fireEvent.change(screen.getByLabelText(label), { target: { value } });
@@ -64,6 +65,21 @@ describe("ProfileEditor", () => {
     fireEvent.click(screen.getByRole("button", { name: "Salvar" }));
     expect((await screen.findAllByRole("alert")).length).toBeGreaterThan(0);
     expect((screen.getByLabelText("Nome") as HTMLInputElement).value).toBe("Beatriz Lima");
+  });
+
+  it("tem os campos do currículo, links para os PDFs e nenhum upload de PDF", () => {
+    wrap(<ProfileEditor row={profileRow} />);
+    for (const label of ["Nome completo (currículo)", "Cidade", "Telefone (só no PDF)", "Frase final do currículo"]) {
+      expect(screen.getByLabelText(label, { exact: false })).toBeTruthy(); // o rótulo também traz a dica
+    }
+    expect(screen.queryByText("Currículo (PDF)")).toBeNull();
+    const hrefs = screen.getAllByRole("link", { name: /Ver PDF/ }).map((a) => [a.getAttribute("href"), a.getAttribute("target")]);
+    expect(hrefs).toEqual([
+      ["/curriculo.pdf", "_blank"],
+      ["/curriculo.pdf?modelo=simples", "_blank"],
+      ["/en/resume.pdf", "_blank"],
+      ["/en/resume.pdf?modelo=simples", "_blank"],
+    ]);
   });
 
   it("no modo EN o Cargo mostra roleEn e o português como placeholder", () => {

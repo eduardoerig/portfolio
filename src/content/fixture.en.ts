@@ -13,7 +13,6 @@ export const fixturePortfolioEn: Portfolio = {
     githubUrl: "https://github.com/eduardoerig",
     linkedinUrl: "https://www.linkedin.com/in/eduardoerig",
     photoPath: null,
-    cvPath: null,
   },
   projects: [
     {

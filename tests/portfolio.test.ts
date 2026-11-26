@@ -38,11 +38,10 @@ describe("getPortfolio", () => {
 
   it("chave guardada vira URL pública; caminho antigo vira null", async () => {
     process.env.NEXT_PUBLIC_FILES_URL = "https://pub.test";
-    await db.profile.update({ where: { id: 1 }, data: { photoPath: "0b1e7f5c-1d2a-4c3b-9e8f-7a6b5c4d3e2f.png", cvPath: "/files/velho.pdf" } });
+    await db.profile.update({ where: { id: 1 }, data: { photoPath: "0b1e7f5c-1d2a-4c3b-9e8f-7a6b5c4d3e2f.png" } });
     const { profile } = await getPortfolio("pt");
     expect(profile.photoPath).toBe("https://pub.test/0b1e7f5c-1d2a-4c3b-9e8f-7a6b5c4d3e2f.png");
-    expect(profile.cvPath).toBeNull();
-    await db.profile.update({ where: { id: 1 }, data: { photoPath: null, cvPath: null } });
+    await db.profile.update({ where: { id: 1 }, data: { photoPath: null } });
   });
 
   it("esconde itens com visible = false", async () => {
