@@ -1,5 +1,6 @@
 import { PrismaClient } from "@prisma/client";
 import { getFixturePortfolio } from "../src/content/fixture";
+import { DEFAULT_LANGUAGES } from "../scripts/db-remote-cv";
 
 const db = new PrismaClient();
 const pt = getFixturePortfolio("pt");
@@ -84,6 +85,10 @@ async function main() {
       order,
     };
     await db.education.upsert({ where: { id: x.id }, update: data, create: { id: x.id, ...data } });
+  }
+
+  for (const [order, { id, ...l }] of DEFAULT_LANGUAGES.entries()) {
+    await db.language.upsert({ where: { id }, update: { ...l, order }, create: { id, ...l, order } });
   }
 }
 

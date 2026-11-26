@@ -20,7 +20,15 @@ model Profile {
   githubUrl   String
   linkedinUrl String
   photoPath   String?
+  // Obsoleto: não é mais lido (o currículo é gerado). Mantido para o db push não apagar dados.
   cvPath      String?
+  // Só no currículo em PDF (o telefone nunca aparece no site).
+  fullName    String?
+  location    String?
+  locationEn  String?
+  phone       String?
+  cvClosing   String?
+  cvClosingEn String?
 }
 
 model Project {
@@ -79,6 +87,18 @@ model Education {
   noteEn   String?
   order    Int
   visible  Boolean @default(true)
+}
+
+// Só no currículo em PDF; proficiency (1 a 5) é a barra de nível.
+model Language {
+  id          Int     @id
+  name        String
+  nameEn      String?
+  level       String
+  levelEn     String?
+  proficiency Int
+  order       Int
+  visible     Boolean @default(true)
 }
 
 // Falhas de login por IP, para o limite de tentativas (5 em 15 min). Linhas antigas não atrapalham a conta.

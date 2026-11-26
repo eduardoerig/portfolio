@@ -13,6 +13,7 @@
     "test": "vitest run",
     "postinstall": "prisma generate",
     "db:remote:init": "tsx --env-file=.env scripts/db-remote-init.ts",
+    "db:remote:cv": "tsx --env-file=.env scripts/db-remote-cv.ts",
     "db:copy": "tsx --env-file=.env scripts/db-copy.ts",
     "db:clear-legacy-paths": "tsx --env-file=.env scripts/clear-legacy-paths.ts"
   },
