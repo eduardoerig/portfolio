@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { fixturePortfolio } from "@/content/fixture";
-import { buildResume, cvFilename, groupSkills, initials, linkLabel, parseBold, splitName, type CvExtras } from "@/cv/resume";
+import { buildResume, cvFilename, groupSkills, initials, linkLabel, parseBold, splitName, wrapLink, type CvExtras } from "@/cv/resume";
 
 const NONE: CvExtras = { fullName: null, location: null, phone: null, closing: null, languages: [] };
 
@@ -74,5 +74,16 @@ describe("cvFilename e linkLabel", () => {
   it("link sem protocolo nem barra final", () => {
     expect(linkLabel("https://github.com/eduardoerig/x/")).toBe("github.com/eduardoerig/x");
     expect(linkLabel("https://www.linkedin.com/in/eduardoerig")).toBe("linkedin.com/in/eduardoerig");
+  });
+});
+
+describe("wrapLink", () => {
+  it("link curto fica igual; longo quebra depois da última / que cabe", () => {
+    expect(wrapLink("github.com/eduardoerig/Dolce-Delicias", 40)).toBe("github.com/eduardoerig/Dolce-Delicias");
+    expect(wrapLink("github.com/eduardoerig/requests-institutional-management", 40)).toBe(
+      "github.com/eduardoerig/\nrequests-institutional-management",
+    );
+    expect(wrapLink("exemplo.com/" + "a".repeat(50), 40)).toBe("exemplo.com/\n" + "a".repeat(50));
+    expect(wrapLink("a".repeat(50), 40)).toBe("a".repeat(50)); // sem / não tem onde quebrar
   });
 });

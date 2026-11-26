@@ -79,3 +79,10 @@ export function cvFilename(fullName: string, locale: Locale, simple: boolean): s
 }
 
 export const linkLabel = (url: string) => url.replace(/^https?:\/\//, "").replace(/^www\./, "").replace(/\/+$/, "");
+
+// O PDF só quebra linha em espaço; link longo ganha uma quebra depois da última "/" que cabe em `max`.
+export function wrapLink(label: string, max: number): string {
+  if (label.length <= max) return label;
+  const cut = label.lastIndexOf("/", max - 1);
+  return cut > 0 ? `${label.slice(0, cut + 1)}\n${label.slice(cut + 1)}` : label;
+}
