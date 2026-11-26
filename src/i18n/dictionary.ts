@@ -95,7 +95,7 @@ const en: Dictionary = {
   hero: {
     badge: "open to opportunities",
     photoAlt: "Photo of",
-    downloadCv: "Download résumé",
+    downloadCv: "Download resume",
     cvHref: "/en/resume.pdf",
     scrollHint: "scroll ↓",
   },
