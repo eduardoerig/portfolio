@@ -12,6 +12,7 @@ const sections: Record<string, string> = {
   experiencias: "experiências",
   competencias: "competências",
   formacao: "formação",
+  idiomas: "idiomas",
 };
 
 const themeDict = getDictionary("pt").theme;

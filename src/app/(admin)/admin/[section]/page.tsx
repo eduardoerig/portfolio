@@ -13,6 +13,7 @@ const SECTIONS: Record<string, { kind: Kind; title: string }> = {
   experiencias: { kind: "experience", title: "Experiências" },
   competencias: { kind: "skill", title: "Competências" },
   formacao: { kind: "education", title: "Formação" },
+  idiomas: { kind: "language", title: "Idiomas" },
 };
 
 type Props = {

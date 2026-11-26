@@ -41,6 +41,8 @@ export default function Preview({ kind, draft, locale, fileUrl, siblings = [] }:
         return <Experience experiences={[itemPreview("experience", draft, locale)]} dict={dict} />;
       case "education":
         return <Education education={[itemPreview("education", draft, locale)]} dict={dict} />;
+      case "language":
+        return <p className="text-sm text-muted">Idiomas não aparecem no site, só no currículo em PDF.</p>;
       case "skill": {
         const item = itemPreview("skill", draft, locale);
         const merged = siblings.some((s) => s.id === item.id)

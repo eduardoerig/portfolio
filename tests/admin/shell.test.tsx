@@ -15,7 +15,7 @@ vi.mock("@/app/(admin)/admin/login/actions", () => ({ logout: vi.fn() }));
 
 afterEach(cleanup);
 
-const counts = { projetos: 4, experiencias: 2, competencias: 9, formacao: 1 };
+const counts = { projetos: 4, experiencias: 2, competencias: 9, formacao: 1, idiomas: 2 };
 
 function Setter({ onCtx }: { onCtx: (c: ReturnType<typeof useAdminStatus>) => void }) {
   onCtx(useAdminStatus());
@@ -29,6 +29,9 @@ describe("painel: estrutura", () => {
     expect(link.textContent).toContain("4");
     expect(link.getAttribute("aria-current")).toBe("page");
     expect(screen.getByRole("link", { name: /Perfil/ }).getAttribute("aria-current")).toBeNull();
+    const idiomas = screen.getByRole("link", { name: /Idiomas/ });
+    expect(idiomas.getAttribute("href")).toBe("/admin/idiomas");
+    expect(idiomas.textContent).toContain("2");
   });
 
   it("AdminHeader mostra iniciais sem foto e abre o menu com Sair", () => {

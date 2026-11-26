@@ -5,7 +5,7 @@ import { useEffect } from "react";
 import { useAdminStatus } from "./AdminStatus";
 import GuardedLink from "./GuardedLink";
 
-type Counts = Record<"projetos" | "experiencias" | "competencias" | "formacao", number>;
+type Counts = Record<"projetos" | "experiencias" | "competencias" | "formacao" | "idiomas", number>;
 
 const items: { href: string; label: string; key?: keyof Counts }[] = [
   { href: "/admin", label: "Perfil" },
@@ -13,6 +13,7 @@ const items: { href: string; label: string; key?: keyof Counts }[] = [
   { href: "/admin/experiencias", label: "Experiências", key: "experiencias" },
   { href: "/admin/competencias", label: "Competências", key: "competencias" },
   { href: "/admin/formacao", label: "Formação", key: "formacao" },
+  { href: "/admin/idiomas", label: "Idiomas", key: "idiomas" },
 ];
 
 export default function Sidebar({ counts }: { counts: Counts }) {

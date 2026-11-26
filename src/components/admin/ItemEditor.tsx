@@ -15,7 +15,8 @@ import { useEditor } from "./useEditor";
 import { useObjectUrl } from "./useObjectUrl";
 
 const SKILL_LEVELS = [["", "—"], ["intermediate", "Intermediário"], ["learning", "Aprendendo"]] as const;
-const TITLE_KEY: Record<Kind, string> = { project: "title", experience: "role", skill: "name", education: "course" };
+const TITLE_KEY: Record<Kind, string> = { project: "title", experience: "role", skill: "name", education: "course", language: "name" };
+const PROFICIENCY = [["1", "1"], ["2", "2"], ["3", "3"], ["4", "4"], ["5", "5"]] as const;
 
 type Props = { kind: Kind; row: Record<string, unknown> | null; base: string; siblings?: { pt: Skill[]; en: Skill[] } };
 
@@ -98,7 +99,14 @@ export default function ItemEditor({ kind, row, base, siblings }: Props) {
           <Tr editor={ed} label="Observação (opcional)" name="note" />
         </>
       )}
-      <Check label="Visível no site" name="visible" checked={draft.visible === true} onChange={(b) => set("visible", b)} />
+      {kind === "language" && (
+        <>
+          <Tr editor={ed} label="Idioma" name="name" />
+          <Tr editor={ed} label="Nível (texto)" name="level" hint="No currículo visual aparece só o que vem antes dos dois-pontos." />
+          <Select label="Barra no currículo (1 a 5)" name="proficiency" value={String(draft.proficiency ?? "3")} onChange={(v) => set("proficiency", v)} error={errors.proficiency} options={PROFICIENCY} />
+        </>
+      )}
+      <Check label={kind === "language" ? "Visível no currículo" : "Visível no site"} name="visible" checked={draft.visible === true} onChange={(b) => set("visible", b)} />
     </EditorFrame>
   );
 }

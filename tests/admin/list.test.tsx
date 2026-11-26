@@ -24,6 +24,14 @@ describe("ItemCard", () => {
   });
 });
 
+describe("ItemCard de idioma", () => {
+  it("mostra nome e nível", () => {
+    const row = { id: 1, order: 0, visible: true, name: "Português", level: "Nativo", proficiency: 5 };
+    render(<AdminStatusProvider><ItemCard kind="language" row={row} href="/admin/idiomas?editar=1" /></AdminStatusProvider>);
+    expect(screen.getByText("Português · Nativo")).toBeTruthy();
+  });
+});
+
 describe("RowActions", () => {
   const setup = () => render(<RowActions kind="project" id={1} visible editHref="/x?editar=1" />);
 

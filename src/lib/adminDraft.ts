@@ -6,6 +6,8 @@ import type { Kind } from "@/lib/tables";
 import type { Education, Experience, Profile, Project, Skill } from "@/lib/types";
 
 export type EditorKind = "profile" | Kind;
+// Os que aparecem no site (idiomas só vão para o currículo).
+type SiteKind = Exclude<Kind, "language">;
 export type Draft = Record<string, string | boolean | string[]>;
 
 export const LIST_FIELDS = ["stack", "stackEn", "bullets", "bulletsEn"];
@@ -19,6 +21,7 @@ const FIELDS: Record<EditorKind, string[]> = {
   experience: ["role", "roleEn", "company", "location", "locationEn", "period", "periodEn", "bullets", "bulletsEn", "current", "visible"],
   skill: ["name", "nameEn", "group", "groupEn", "level", "visible"],
   education: ["course", "courseEn", "school", "period", "periodEn", "note", "noteEn", "visible"],
+  language: ["name", "nameEn", "level", "levelEn", "proficiency", "visible"],
 };
 
 const fieldValue = (k: string, v: unknown) =>
@@ -29,6 +32,7 @@ export function rowToDraft(row: Record<string, unknown> | null, kind: EditorKind
     const d: Draft = { id: "" };
     for (const k of FIELDS[kind]) d[k] = fieldValue(k, null);
     if (kind !== "profile") d.visible = true;
+    if (kind === "language") d.proficiency = "3"; // a barra começa no meio
     return d;
   }
   return Object.fromEntries(Object.entries(row).map(([k, v]) => [k, fieldValue(k, v)]));
@@ -74,8 +78,8 @@ export function itemPreview(kind: "project", d: Draft, locale: Locale, imageUrl?
 export function itemPreview(kind: "experience", d: Draft, locale: Locale, imageUrl?: string | null): Experience;
 export function itemPreview(kind: "skill", d: Draft, locale: Locale, imageUrl?: string | null): Skill;
 export function itemPreview(kind: "education", d: Draft, locale: Locale, imageUrl?: string | null): Education;
-export function itemPreview(kind: Kind, d: Draft, locale: Locale, imageUrl?: string | null): Project | Experience | Skill | Education;
-export function itemPreview(kind: Kind, d: Draft, locale: Locale, imageUrl?: string | null): Project | Experience | Skill | Education {
+export function itemPreview(kind: SiteKind, d: Draft, locale: Locale, imageUrl?: string | null): Project | Experience | Skill | Education;
+export function itemPreview(kind: SiteKind, d: Draft, locale: Locale, imageUrl?: string | null): Project | Experience | Skill | Education {
   const p = (k: string) => pick(locale, str(d, k), strOrNull(d, `${k}En`));
   const pn = (k: string) => pickNull(locale, strOrNull(d, k), strOrNull(d, `${k}En`));
   const pl = (k: string) => pickList(locale, jsonList(d, k), jsonListEn(d, k));

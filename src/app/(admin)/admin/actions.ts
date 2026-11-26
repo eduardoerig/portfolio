@@ -100,6 +100,14 @@ const itemSchemas = {
     noteEn: optional,
     visible: checkbox,
   }),
+  language: z.object({
+    name: required("Idioma"),
+    nameEn: optional,
+    level: required("Nível"),
+    levelEn: optional,
+    proficiency: z.coerce.number().int("Nível de 1 a 5").min(1, "Nível de 1 a 5").max(5, "Nível de 1 a 5"),
+    visible: checkbox,
+  }),
 };
 
 function parse<T extends z.ZodType>(schema: T, form: FormData): { data: z.output<T> } | { errors: Record<string, string> } {

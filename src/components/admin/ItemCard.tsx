@@ -27,6 +27,7 @@ export default function ItemCard({ kind, row, href }: { kind: Kind; row: Row; hr
           {kind === "project" && <span>{s("title")}</span>}
           {kind === "experience" && <span>{s("role")} · {s("company")}</span>}
           {kind === "education" && <span>{s("course")} · {s("school")}</span>}
+          {kind === "language" && <span>{s("name")} · {s("level")}</span>}
           {!row.visible && <span className="chip">oculto</span>}
         </span>
         {kind === "project" && (

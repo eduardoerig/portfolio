@@ -52,6 +52,18 @@ beforeEach(() => {
 afterAll(() => db?.$disconnect());
 
 describe("saveItem", () => {
+  it("idioma: cria no fim da lista e recusa barra fora de 1 a 5", async () => {
+    const ok = await actions.saveItem("language", form({ id: "", name: "Espanhol", level: "Básico", proficiency: "2", visible: "on" }));
+    expect(ok.errors).toBeUndefined();
+    const l = await db.language.findFirstOrThrow({ where: { name: "Espanhol" } });
+    expect([l.level, l.proficiency, l.visible, l.nameEn]).toEqual(["Básico", 2, true, null]);
+    expect(l.order).toBe((await db.language.aggregate({ _max: { order: true } }))._max.order);
+
+    const bad = await actions.saveItem("language", form({ id: "", name: "Alemão", level: "Básico", proficiency: "9" }));
+    expect(bad.errors?.proficiency).toBeTruthy();
+    expect(await db.language.count({ where: { name: "Alemão" } })).toBe(0);
+  });
+
   it("rejeita título vazio e não cria linha", async () => {
     const antes = await db.project.count();
     const r = await actions.saveItem("project", projectForm({ title: "" }));
