@@ -27,7 +27,7 @@ export default async function AdminChrome({ children }: { children: React.ReactN
         <AdminHeader name={profile?.name ?? "Admin"} photoPath={fileUrl(profile?.photoPath)} />
         <div className="flex flex-1">
           <Sidebar counts={{ projetos, experiencias, competencias, formacao, idiomas }} />
-          <main className="mx-auto flex w-full max-w-6xl flex-col gap-4 p-6">{children}</main>
+          <main id="conteudo" tabIndex={-1} className="mx-auto flex w-full min-w-0 max-w-6xl flex-col gap-4 p-4 outline-none md:p-6">{children}</main>
         </div>
       </div>
       <Toast />

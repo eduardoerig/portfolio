@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
+import { inputClass } from "@/components/admin/controls";
 import { login } from "./actions";
 
 export default function LoginPage() {
@@ -15,7 +16,7 @@ export default function LoginPage() {
         backgroundSize: "40px 40px",
       }}
     >
-      <form action={formAction} className="card flex w-full max-w-sm flex-col gap-4 p-6">
+      <form action={formAction} className="card card-static flex w-full max-w-sm flex-col gap-4">
         <h1 className="font-mono text-xl text-[var(--accent)]">&gt; admin</h1>
         <label className="flex flex-col gap-1 text-sm">
           Senha
@@ -25,7 +26,7 @@ export default function LoginPage() {
             required
             autoFocus
             autoComplete="current-password"
-            className="rounded-md border border-current/20 bg-transparent px-3 py-2"
+            className={inputClass}
           />
         </label>
         {state.error && <p role="alert" className="text-sm text-[var(--danger)]">{state.error}</p>}

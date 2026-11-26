@@ -1,6 +1,6 @@
 "use client";
 import { useId, useState } from "react";
-import { inputClass } from "./controls";
+import { Err, Hint, inputClass, useDescribed } from "./controls";
 
 const X = (
   <svg viewBox="0 0 12 12" width="10" height="10" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
@@ -20,6 +20,7 @@ export default function TagInput({ label, value, onChange, onPending, placeholde
   long?: boolean;
 }) {
   const id = useId();
+  const d = useDescribed(hint, error);
   const [draft, setDraft] = useState("");
   const remove = (i: number) => onChange(value.filter((_, j) => j !== i));
 
@@ -57,7 +58,7 @@ export default function TagInput({ label, value, onChange, onPending, placeholde
         {!long && value.map((text, i) => (
           <span key={i} className="chip inline-flex items-center gap-1">
             {text}
-            <button type="button" aria-label={`Remover ${text}`} onClick={() => remove(i)}>{X}</button>
+            <button type="button" aria-label={`Remover ${text}`} onClick={() => remove(i)} className="-m-1 rounded-full p-1.5 hover:text-[var(--danger)]">{X}</button>
           </span>
         ))}
         <input
@@ -71,10 +72,11 @@ export default function TagInput({ label, value, onChange, onPending, placeholde
           onBlur={commit}
           onKeyDown={onKeyDown}
           className="min-w-24 flex-1 bg-transparent outline-none"
+          {...d.props}
         />
       </div>
-      {hint && <span className="text-xs text-[var(--muted)]">{hint}</span>}
-      {error && <span role="alert" className="text-xs text-[var(--danger)]">{error}</span>}
+      <Hint id={d.hintId} text={hint} />
+      <Err id={d.errorId} error={error} />
     </div>
   );
 }

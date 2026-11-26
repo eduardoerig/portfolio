@@ -8,7 +8,9 @@ import { useAdminStatus } from "./AdminStatus";
 import { ActionError } from "./controls";
 
 // Client porque a Server Action pode lançar (sessão expirada, item já apagado) e o erro precisa aparecer aqui, sem derrubar a página.
-export default function RowActions({ kind, id, visible, editHref, first = false, last = false }: { kind: Kind; id: number; visible: boolean; editHref: string; first?: boolean; last?: boolean }) {
+export default function RowActions({ kind, id, name, visible, editHref, first = false, last = false }: { kind: Kind; id: number; name?: string; visible: boolean; editHref: string; first?: boolean; last?: boolean }) {
+  // Nome do item no rótulo: na lista, "Excluir" sozinho se repete em toda linha para o leitor de tela.
+  const of = (action: string) => (name ? `${action} ${name}` : action);
   const { notify, scheduleDelete } = useAdminStatus();
   const [failed, setFailed] = useState(false);
   const [pending, start] = useTransition();
@@ -31,22 +33,22 @@ export default function RowActions({ kind, id, visible, editHref, first = false,
 
   return (
     <div className="flex flex-wrap items-center gap-1">
-      <button className="btn aria-disabled:opacity-40" aria-disabled={pending || first} aria-label="Subir" title="Subir" onClick={guard(first, () => run(() => move(kind, id, "up")))}><Icon d="M12 19V5M5 12l7-7 7 7" /></button>
-      <button className="btn aria-disabled:opacity-40" aria-disabled={pending || last} aria-label="Descer" title="Descer" onClick={guard(last, () => run(() => move(kind, id, "down")))}><Icon d="M12 5v14M19 12l-7 7-7-7" /></button>
+      <button className="btn btn-icon aria-disabled:opacity-40" aria-disabled={pending || first} aria-label={of("Subir")} title="Subir" onClick={guard(first, () => run(() => move(kind, id, "up")))}><Icon d="M12 19V5M5 12l7-7 7 7" /></button>
+      <button className="btn btn-icon aria-disabled:opacity-40" aria-disabled={pending || last} aria-label={of("Descer")} title="Descer" onClick={guard(last, () => run(() => move(kind, id, "down")))}><Icon d="M12 5v14M19 12l-7 7-7-7" /></button>
       <button
-        className="btn aria-disabled:opacity-40"
+        className="btn btn-icon aria-disabled:opacity-40"
         aria-disabled={pending}
-        aria-label={visible ? "Ocultar" : "Mostrar"}
+        aria-label={of(visible ? "Ocultar" : "Mostrar")}
         title={visible ? "Ocultar do site" : "Mostrar no site"}
         onClick={guard(false, () => run(() => toggleVisible(kind, id), visible ? "Item ocultado do site." : "Item visível no site."))}
       >
         <Icon d={visible ? "M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12ZM12 9a3 3 0 1 1 0 6 3 3 0 0 1 0-6Z" : "M17.9 17.9A10.9 10.9 0 0 1 12 19C5 19 1 12 1 12a18 18 0 0 1 5.1-5.9M9.9 5.1A10.4 10.4 0 0 1 12 5c7 0 11 7 11 7a18 18 0 0 1-2.2 3.2M1 1l22 22"} />
       </button>
-      <Link href={editHref} className="btn" aria-label="Editar" title="Editar"><Icon d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" /></Link>
+      <Link href={editHref} className="btn btn-icon" aria-label={of("Editar")} title="Editar"><Icon d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" /></Link>
       <button
-        className="btn text-[var(--danger)] aria-disabled:opacity-40"
+        className="btn btn-icon btn-danger aria-disabled:opacity-40"
         aria-disabled={pending}
-        aria-label="Excluir"
+        aria-label={of("Excluir")}
         title="Excluir"
         onClick={guard(false, () => scheduleDelete(`${kind}:${id}`, () => deleteItem(kind, id)))}
       >

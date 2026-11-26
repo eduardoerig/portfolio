@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { saveItem } from "@/app/(admin)/admin/actions";
+import { itemTitle } from "@/lib/itemTitle";
 import type { Kind } from "@/lib/tables";
 import type { Skill } from "@/lib/types";
 import { useAdminStatus } from "./AdminStatus";
@@ -14,7 +15,6 @@ import Preview from "./Preview";
 import { useEditor } from "./useEditor";
 
 const SKILL_LEVELS = [["", "—"], ["intermediate", "Intermediário"], ["learning", "Aprendendo"]] as const;
-const TITLE_KEY: Record<Kind, string> = { project: "title", experience: "role", skill: "name", education: "course", language: "name" };
 const PROFICIENCY = [["1", "1"], ["2", "2"], ["3", "3"], ["4", "4"], ["5", "5"]] as const;
 
 type Props = { kind: Kind; row: Record<string, unknown> | null; base: string; siblings?: { pt: Skill[]; en: Skill[] } };
@@ -38,7 +38,7 @@ export default function ItemEditor({ kind, row, base, siblings }: Props) {
     },
   });
   const { draft, set, errors, locale } = ed;
-  const title = row ? String(row[TITLE_KEY[kind]] ?? "") || "Editar item" : "Novo item";
+  const title = row ? itemTitle(kind, row) || "Editar item" : "Novo item";
 
   useEffect(() => {
     setCrumb(isNew ? "novo" : title);

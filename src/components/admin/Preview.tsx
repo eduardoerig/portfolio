@@ -54,7 +54,7 @@ export default function Preview({ kind, draft, locale, fileUrl, siblings = [] }:
   }
 
   return (
-    <aside className="card p-4 lg:sticky lg:top-20 lg:max-h-[calc(100vh-6rem)] lg:overflow-auto">
+    <aside className="card card-static lg:sticky lg:top-20 lg:max-h-[calc(100vh-6rem)] lg:overflow-auto">
       <div className="mb-4 flex items-center justify-between">
         <span className="font-mono text-sm text-muted">{"// prévia"}</span>
         <span className="flex items-center gap-2">

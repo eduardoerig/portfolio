@@ -86,6 +86,21 @@ describe("ProfileEditor", () => {
     expect(updateProfile).toHaveBeenCalledTimes(2);
   });
 
+  it("idioma é um par de botões com estado pressionado", () => {
+    wrap(<ProfileEditor row={profileRow} />);
+    expect(screen.getByRole("button", { name: /^PT/, pressed: true })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: /^EN/, pressed: false }));
+    expect(screen.getByRole("button", { name: /^EN/, pressed: true })).toBeTruthy();
+  });
+
+  it("no celular a prévia abre por um botão (sem duplicar a prévia)", () => {
+    wrap(<ProfileEditor row={profileRow} />);
+    const toggle = screen.getByRole("button", { name: "Ver prévia" });
+    expect(toggle.getAttribute("aria-expanded")).toBe("false");
+    fireEvent.click(toggle);
+    expect(screen.getByRole("button", { name: "Esconder prévia" }).getAttribute("aria-expanded")).toBe("true");
+  });
+
   it("não tem botão Salvar", () => {
     wrap(<ProfileEditor row={profileRow} />);
     expect(screen.queryByRole("button", { name: "Salvar" })).toBeNull();
@@ -108,7 +123,7 @@ describe("ProfileEditor", () => {
 
   it("no modo EN o Cargo mostra roleEn e o português como placeholder", () => {
     wrap(<ProfileEditor row={profileRow} />);
-    fireEvent.click(screen.getByRole("radio", { name: /EN/ }));
+    fireEvent.click(screen.getByRole("button", { name: /^EN/, pressed: false }));
     const role = screen.getByLabelText("Cargo") as HTMLInputElement;
     expect(role.value).toBe("Developer");
     expect(role.placeholder).toBe("Desenvolvedora");
@@ -302,7 +317,7 @@ describe("imagem do item", () => {
     const row = { id: 2, name: "Go", nameEn: "", group: "Back-end", groupEn: "", level: "", visible: true };
     wrap(<ItemEditor kind="skill" row={row} base="/admin/competencias" siblings={siblings} />);
     expect(screen.getByText("Banco de dados")).toBeTruthy();
-    fireEvent.click(screen.getByRole("radio", { name: /EN/ }));
+    fireEvent.click(screen.getByRole("button", { name: /^EN/, pressed: false }));
     expect(screen.getByText("Databases")).toBeTruthy();
     expect(screen.queryByText("Banco de dados")).toBeNull();
   });

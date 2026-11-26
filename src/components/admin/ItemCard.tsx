@@ -21,7 +21,7 @@ export default function ItemCard({ kind, row, href }: { kind: Kind; row: Row; hr
         ) : (
           <span className="h-12 w-16 shrink-0 rounded border border-[var(--border)]" aria-hidden="true" />
         ))}
-      <span className="flex min-w-0 flex-col gap-1">
+      <span className="flex min-w-0 flex-col gap-1 break-words">
         <span className="flex flex-wrap items-center gap-2">
           {kind === "skill" && <span className="chip inline-flex items-center gap-1"><SkillIcon name={s("name")} />{s("name")}{level && ` · ${LEVEL[level]}`}</span>}
           {kind === "project" && <span>{s("title")}</span>}

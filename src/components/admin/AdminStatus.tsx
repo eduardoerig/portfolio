@@ -49,7 +49,7 @@ export function AdminStatusProvider({ children }: { children: React.ReactNode })
     timer.current = setTimeout(() => {
       setMessage(null);
       setToastAction(null);
-    }, action ? DELETE_DELAY : 2500);
+    }, action ? DELETE_DELAY : 5000); // 5 s: dá tempo de ler (e de o leitor de tela anunciar)
   }, []);
 
   const show = useCallback((key: string, on: boolean) => {

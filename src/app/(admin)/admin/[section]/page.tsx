@@ -6,6 +6,7 @@ import ItemEditor from "@/components/admin/ItemEditor";
 import ListRow from "@/components/admin/ListRow";
 import RowActions from "@/components/admin/RowActions";
 import type { Locale } from "@/i18n/locales";
+import { itemTitle } from "@/lib/itemTitle";
 import { pick, toLevel } from "@/lib/localize";
 import { ORDER, table, type Kind } from "@/lib/tables";
 
@@ -60,7 +61,7 @@ export default async function SectionPage({ params, searchParams }: Props) {
           {rows.map((r, i) => (
             <ListRow key={r.id} rowKey={`${kind}:${r.id}`}>
               <ItemCard kind={kind} row={r} href={`${base}?editar=${r.id}`} />
-              <RowActions kind={kind} id={r.id} visible={r.visible} editHref={`${base}?editar=${r.id}`} first={i === 0} last={i === rows.length - 1} />
+              <RowActions kind={kind} id={r.id} name={itemTitle(kind, r)} visible={r.visible} editHref={`${base}?editar=${r.id}`} first={i === 0} last={i === rows.length - 1} />
             </ListRow>
           ))}
           {rows.length === 0 && (

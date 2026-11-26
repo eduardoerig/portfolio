@@ -18,7 +18,7 @@ function setup(props: Partial<Parameters<typeof ImageField>[0]> = {}) {
 describe("ImageField", () => {
   it("com url mostra miniatura e os botões; Remover chama onRemove", () => {
     const { onRemove } = setup({ url: "/x.png" });
-    expect(screen.getByAltText("Miniatura")).toHaveAttribute("src", "/x.png");
+    expect(screen.getByAltText("Foto atual")).toHaveAttribute("src", "/x.png");
     expect(screen.getByRole("button", { name: "Trocar" })).toBeEnabled();
     fireEvent.click(screen.getByRole("button", { name: "Remover" }));
     expect(onRemove).toHaveBeenCalledTimes(1);
@@ -27,7 +27,7 @@ describe("ImageField", () => {
   it("sem url mostra a área vazia", () => {
     setup();
     expect(screen.getByText("Arraste uma imagem ou clique para escolher")).toBeInTheDocument();
-    expect(screen.queryByAltText("Miniatura")).toBeNull();
+    expect(screen.queryByAltText("Foto atual")).toBeNull();
   });
 
   it("escolher arquivo chama onPick", async () => {

@@ -19,6 +19,8 @@
   /* Fundo de controles preenchidos (botão principal, menu ativo): um pouco mais escuro
      que --accent para o texto branco passar de 4.5:1. --accent segue para texto e bordas. */
   --accent-strong: #2f6bf0;
+  /* Contorno de campos de formulário: 3:1 contra o cartão (WCAG 1.4.11). --border segue para divisórias. */
+  --control-border: #5b6d8f;
   /* Tons discretos para os grupos de competências (só borda e texto). */
   --hue-blue: #6f8fc9;
   --hue-teal: #5fa8a0;
@@ -44,6 +46,7 @@
   --accent: #1f4fd1;
   --accent-deep: #c9d6f5;
   --accent-strong: #1f4fd1;
+  --control-border: #7d889c;
   --danger: #b42318;
   --success: #15803d;
   --grid: #e6ebf2;
@@ -215,6 +218,25 @@ section[id] {
   }
   .btn-primary:hover {
     filter: brightness(1.12);
+  }
+  /* Ação destrutiva (excluir, remover): mesma forma, cor de perigo. */
+  .btn-danger {
+    color: var(--danger);
+  }
+  .btn-danger:hover {
+    border-color: var(--danger);
+  }
+  /* Botão só com ícone: círculo de 2.5rem (alvo de toque confortável). */
+  .btn-icon {
+    width: 2.5rem;
+    height: 2.5rem;
+    padding: 0;
+  }
+
+  /* Foco do teclado sempre visível, nos dois temas. */
+  :where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
   }
 
   /* ---------- Menu flutuante ---------- */
@@ -501,6 +523,12 @@ section[id] {
       translate: 0 -3px;
       border-color: var(--accent);
       box-shadow: 0 8px 30px var(--accent-deep);
+    }
+    /* Painéis do admin (formulário, prévia): não são clicáveis, então não "levantam". */
+    .card.card-static:hover {
+      translate: none;
+      border-color: var(--border);
+      box-shadow: none;
     }
 
     /* ----- Entrada do topo, ao carregar a página (~1.2s, sem precisar rolar) ----- */

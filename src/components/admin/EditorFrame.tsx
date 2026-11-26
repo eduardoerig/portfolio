@@ -1,12 +1,12 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import type { Locale } from "@/i18n/locales";
 import { ActionError, Field } from "./controls";
 import TagInput from "./TagInput";
 import type { Editor } from "./useEditor";
 
-// Esquerda: formulário; direita: prévia (embaixo do formulário abaixo de lg).
+// Esquerda: formulário; direita: prévia. Abaixo de lg a prévia abre por um botão, acima do formulário.
 export default function EditorFrame({ title, editor, autosave, preview, cancel, children }: {
   title: string;
   editor: Editor;
@@ -19,26 +19,28 @@ export default function EditorFrame({ title, editor, autosave, preview, cancel, 
   // Ponto no EN quando há texto em português sem a tradução.
   const empty = (v: unknown) => (Array.isArray(v) ? v.length === 0 : !v);
   const missing = Object.entries(draft).some(([k, v]) => k.endsWith("En") && empty(v) && !empty(draft[k.slice(0, -2)]));
-
+  const [showPreview, setShowPreview] = useState(false);
 
   return (
     <div className="grid gap-6 lg:grid-cols-2">
+      <button type="button" aria-expanded={showPreview} onClick={() => setShowPreview((v) => !v)} className="btn order-first lg:hidden">
+        {showPreview ? "Esconder prévia" : "Ver prévia"}
+      </button>
       <form
         onSubmit={(e) => {
           e.preventDefault();
           void (autosave ? flush() : submit());
         }}
-        className="card flex flex-col gap-4"
+        className="card card-static flex min-w-0 flex-col gap-4"
       >
-        <div className="flex items-center justify-between gap-3">
-          <h2 className="text-lg font-semibold">{title}</h2>
-          <div role="radiogroup" aria-label="Idioma" className="flex gap-1">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h2 className="min-w-0 break-words text-lg font-semibold">{title}</h2>
+          <div role="group" aria-label="Idioma do conteúdo" className="flex gap-1">
             {(["pt", "en"] as Locale[]).map((l) => (
               <button
                 key={l}
                 type="button"
-                role="radio"
-                aria-checked={locale === l}
+                aria-pressed={locale === l}
                 onClick={() => setLocale(l)}
                 className={`btn px-3 ${locale === l ? "btn-primary" : ""}`}
               >
@@ -56,7 +58,8 @@ export default function EditorFrame({ title, editor, autosave, preview, cancel, 
         {children}
         {!autosave && failed && <ActionError />}
         {!autosave && Object.keys(errors).length > 0 && <p role="alert" className="text-sm text-[var(--danger)]">Corrija os campos destacados.</p>}
-        <div className="flex flex-wrap items-center gap-3">
+        {/* Fica presa no rodapé do cartão ao rolar: status e Voltar/Criar sempre à vista (no celular, principalmente). */}
+        <div className="sticky bottom-0 z-10 -mx-5 -mb-5 mt-2 flex flex-wrap items-center gap-3 rounded-b-2xl border-t border-[var(--border)] bg-[var(--surface)] px-5 py-3">
           {autosave ? (
             <div aria-live="polite" className="flex flex-wrap items-center gap-2 text-sm">
               {status === "waiting" && <span className="text-[var(--muted)]">Alterações pendentes…</span>}
@@ -88,7 +91,7 @@ export default function EditorFrame({ title, editor, autosave, preview, cancel, 
           {cancel}
         </div>
       </form>
-      {preview}
+      <div className={`${showPreview ? "order-first" : "hidden"} min-w-0 lg:order-none lg:block`}>{preview}</div>
     </div>
   );
 }

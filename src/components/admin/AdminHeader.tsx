@@ -22,11 +22,18 @@ export default function AdminHeader({ name, photoPath }: { name: string; photoPa
   const { dirty, crumb, menuOpen, setMenuOpen } = useAdminStatus();
   const [menu, setMenu] = useState(false);
   const wrap = useRef<HTMLDivElement>(null);
+  const avatar = useRef<HTMLButtonElement>(null);
+  const logoutBtn = useRef<HTMLButtonElement>(null);
 
-  // Menu da conta: fecha com Esc e com clique fora.
+  // Menu da conta: abre com o foco em "Sair"; fecha com Esc (devolvendo o foco ao avatar) e com clique fora.
   useEffect(() => {
     if (!menu) return;
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setMenu(false);
+    logoutBtn.current?.focus();
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      setMenu(false);
+      avatar.current?.focus();
+    };
     const onDown = (e: MouseEvent) => wrap.current?.contains(e.target as Node) || setMenu(false);
     document.addEventListener("keydown", onKey);
     document.addEventListener("mousedown", onDown);
@@ -40,24 +47,28 @@ export default function AdminHeader({ name, photoPath }: { name: string; photoPa
   const initials = name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]!.toUpperCase()).join("");
 
   return (
-    <header className="flex items-center gap-3 border-b border-[var(--border)] px-4 py-3 text-sm">
+    <header className="flex items-center gap-3 border-b border-[var(--border)] px-4 py-3 text-sm md:px-6">
+      <a href="#conteudo" className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-lg focus:bg-[var(--surface)] focus:px-4 focus:py-2">
+        Pular para o conteúdo
+      </a>
       <button
         type="button"
+        id="admin-menu-button"
         aria-label="Abrir menu"
         aria-controls="admin-sidebar"
         aria-expanded={menuOpen}
         onClick={() => setMenuOpen(!menuOpen)}
-        className="md:hidden"
+        className="btn btn-icon text-lg md:hidden"
       >
         ☰
       </button>
-      <span className="font-mono text-[var(--accent)]">&gt; admin</span>
-      <span className="truncate text-[var(--muted)]">
+      <span className="whitespace-nowrap font-mono text-[var(--accent)]">&gt; admin</span>
+      <span className="min-w-0 truncate text-[var(--muted)]">
         / {section}
         {crumb && <> / {crumb}</>}
       </span>
       <span className="flex-1" />
-      <span className={`font-mono text-xs ${dirty ? "text-[var(--danger)]" : "text-[var(--success)]"}`}>
+      <span className={`whitespace-nowrap font-mono text-xs ${dirty ? "text-[var(--danger)]" : "text-[var(--success)]"}`}>
         ● {dirty ? "alterações não salvas" : "salvo"}
       </span>
       <ThemeToggle dict={themeDict} />
@@ -65,10 +76,12 @@ export default function AdminHeader({ name, photoPath }: { name: string; photoPa
       <div ref={wrap} className="relative">
         <button
           type="button"
+          ref={avatar}
           aria-label="Menu da conta"
+          aria-haspopup="menu"
           aria-expanded={menu}
           onClick={() => setMenu((m) => !m)}
-          className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-full border border-[var(--border)] bg-[var(--surface)] text-xs font-semibold"
+          className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border border-[var(--border)] bg-[var(--surface)] text-xs font-semibold"
         >
           {photoPath ? (
             // eslint-disable-next-line @next/next/no-img-element -- foto local em /uploads
@@ -84,7 +97,7 @@ export default function AdminHeader({ name, photoPath }: { name: string; photoPa
               if (dirty && !confirm("Há alterações não salvas. Sair mesmo assim?")) e.preventDefault();
             }}
             className="card absolute right-0 top-10 z-40 !p-2">
-            <button type="submit" className="rounded-md px-3 py-1.5 text-left text-sm hover:text-[var(--accent)]">Sair</button>
+            <button ref={logoutBtn} type="submit" className="rounded-md px-3 py-1.5 text-left text-sm hover:text-[var(--accent)]">Sair</button>
           </form>
         )}
       </div>

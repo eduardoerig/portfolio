@@ -34,7 +34,7 @@ export default function StorageCleanup() {
   }
 
   return (
-    <section className="card flex flex-col gap-3">
+    <section className="card card-static flex flex-col gap-3">
       <div className="flex flex-wrap items-center gap-3">
         <span className="label">Armazenamento</span>
         <button type="button" className="btn" onClick={() => check(false)} disabled={busy}>

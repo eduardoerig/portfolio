@@ -144,7 +144,7 @@ describe("painel: estrutura", () => {
     );
     act(() => ctx.notify("Salvo ✓"));
     expect(screen.getByRole("status").textContent).toBe("Salvo ✓");
-    act(() => vi.advanceTimersByTime(3000));
+    act(() => vi.advanceTimersByTime(5000));
     expect(screen.getByRole("status").textContent).toBe("");
     vi.useRealTimers();
   });
