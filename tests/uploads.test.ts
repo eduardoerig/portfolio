@@ -6,7 +6,8 @@ import { validateUpload } from "@/lib/uploads";
 const MB = 1024 * 1024;
 const file = (name: string, type: string, size: number) => new File([new Uint8Array(size)], name, { type });
 const TYPE_ERROR = "Tipo de arquivo não permitido";
-const SIZE_ERROR = "Arquivo maior que o limite";
+const IMG_ERROR = "Arquivo maior que 3 MB";
+const PDF_ERROR = "Arquivo maior que 5 MB";
 
 describe("validateUpload", () => {
   it("aceita PNG de 100 KB como imagem", () => {
@@ -28,22 +29,22 @@ describe("validateUpload", () => {
     expect(validateUpload(file("foto.exe", "image/png", 10), "image")).toEqual({ ok: false, error: TYPE_ERROR });
   });
   it("recusa imagem de 4 MB e PDF de 6 MB, aceita PDF de 5 MB", () => {
-    expect(validateUpload(file("a.png", "image/png", 4 * MB), "image")).toEqual({ ok: false, error: SIZE_ERROR });
-    expect(validateUpload(file("a.pdf", "application/pdf", 6 * MB), "pdf")).toEqual({ ok: false, error: SIZE_ERROR });
+    expect(validateUpload(file("a.png", "image/png", 4 * MB), "image")).toEqual({ ok: false, error: IMG_ERROR });
+    expect(validateUpload(file("a.pdf", "application/pdf", 6 * MB), "pdf")).toEqual({ ok: false, error: PDF_ERROR });
     expect(validateUpload(file("a.pdf", "application/pdf", 5 * MB), "pdf")).toEqual({ ok: true });
   });
 });
 
 describe("limites no navegador", () => {
   it("checkFileSize devolve o mesmo erro do servidor para arquivos grandes", () => {
-    expect(checkFileSize(file("a.png", "image/png", 4 * MB), "image")).toBe(SIZE_ERROR);
-    expect(checkFileSize(file("a.pdf", "application/pdf", 6 * MB), "pdf")).toBe(SIZE_ERROR);
+    expect(checkFileSize(file("a.png", "image/png", 4 * MB), "image")).toBe(IMG_ERROR);
+    expect(checkFileSize(file("a.pdf", "application/pdf", 6 * MB), "pdf")).toBe(PDF_ERROR);
     expect(checkFileSize(file("a.pdf", "application/pdf", 5 * MB), "pdf")).toBeNull();
   });
   it("fileErrors aponta só os campos grandes demais", () => {
     const data = new FormData();
     data.set("photo", file("a.png", "image/png", 4 * MB));
     data.set("cv", file("a.pdf", "application/pdf", 1));
-    expect(fileErrors(data, { photo: "image", cv: "pdf" })).toEqual({ photo: SIZE_ERROR });
+    expect(fileErrors(data, { photo: "image", cv: "pdf" })).toEqual({ photo: IMG_ERROR });
   });
 });

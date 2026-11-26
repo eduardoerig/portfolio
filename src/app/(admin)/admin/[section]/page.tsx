@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import GuardedLink from "@/components/admin/GuardedLink";
 import ItemCard from "@/components/admin/ItemCard";
 import ItemEditor from "@/components/admin/ItemEditor";
+import ListRow from "@/components/admin/ListRow";
 import RowActions from "@/components/admin/RowActions";
 import type { Locale } from "@/i18n/locales";
 import { pick, toLevel } from "@/lib/localize";
@@ -45,9 +46,9 @@ export default async function SectionPage({ params, searchParams }: Props) {
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold">{title}</h1>
         {open ? (
-          <GuardedLink href={base} className="btn">← voltar para a lista</GuardedLink>
+          <GuardedLink href={base} className="btn">← Voltar para a lista</GuardedLink>
         ) : (
-          <Link href={`${base}?novo=1`} className="btn btn-primary">+ novo</Link>
+          <Link href={`${base}?novo=1`} className="btn btn-primary">+ Novo</Link>
         )}
       </div>
 
@@ -57,12 +58,16 @@ export default async function SectionPage({ params, searchParams }: Props) {
       ) : (
         <ul className="flex flex-col gap-3">
           {rows.map((r, i) => (
-            <li key={r.id} className="flex flex-wrap items-center gap-3">
+            <ListRow key={r.id} rowKey={`${kind}:${r.id}`}>
               <ItemCard kind={kind} row={r} href={`${base}?editar=${r.id}`} />
               <RowActions kind={kind} id={r.id} visible={r.visible} editHref={`${base}?editar=${r.id}`} first={i === 0} last={i === rows.length - 1} />
-            </li>
+            </ListRow>
           ))}
-          {rows.length === 0 && <li className="text-sm text-[var(--muted)]">Nenhum item ainda.</li>}
+          {rows.length === 0 && (
+            <li className="text-sm text-[var(--muted)]">
+              Nenhum item ainda. <Link href={`${base}?novo=1`} className="underline">Adicionar o primeiro</Link>
+            </li>
+          )}
         </ul>
       )}
     </>

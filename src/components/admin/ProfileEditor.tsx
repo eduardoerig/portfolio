@@ -8,10 +8,10 @@ import Preview from "./Preview";
 import { useEditor } from "./useEditor";
 
 const CV_LINKS = [
-  ["/curriculo.pdf", "PT"],
-  ["/curriculo.pdf?modelo=simples", "PT simples"],
-  ["/en/resume.pdf", "EN"],
-  ["/en/resume.pdf?modelo=simples", "EN simples"],
+  ["/curriculo.pdf", "Currículo PT"],
+  ["/curriculo.pdf?modelo=simples", "Currículo PT (simples)"],
+  ["/en/resume.pdf", "Currículo EN"],
+  ["/en/resume.pdf?modelo=simples", "Currículo EN (simples)"],
 ] as const;
 
 export default function ProfileEditor({ row }: { row: Record<string, unknown> }) {
@@ -33,8 +33,8 @@ export default function ProfileEditor({ row }: { row: Record<string, unknown> })
       <Tr editor={ed} label="Cargo" name="role" />
       <Tr editor={ed} label="Resumo" name="summary" multiline />
       {text("email", "E-mail")}
-      {text("githubUrl", "GitHub (URL)")}
-      {text("linkedinUrl", "LinkedIn (URL)")}
+      {text("githubUrl", "Link do GitHub")}
+      {text("linkedinUrl", "Link do LinkedIn")}
       <Check label="Aberto a oportunidades" name="openToWork" checked={draft.openToWork === true} onChange={(b) => set("openToWork", b)} />
       <ImageField
         label="Foto"
@@ -47,14 +47,14 @@ export default function ProfileEditor({ row }: { row: Record<string, unknown> })
       />
       <fieldset className="flex flex-col gap-4 border-t border-[var(--border)] pt-4">
         <legend className="label pr-2">Currículo (gerado a partir deste painel)</legend>
-        {text("fullName", "Nome completo (currículo)")}
-        <Tr editor={ed} label="Cidade" name="location" />
-        {text("phone", "Telefone (só no PDF)")}
-        <Tr editor={ed} label="Frase final do currículo" name="cvClosing" multiline hint="Vai no fim do resumo. Trecho entre ** sai em negrito." />
+        {text("fullName", "Nome completo (opcional)")}
+        <Tr editor={ed} label="Cidade (opcional)" name="location" />
+        {text("phone", "Telefone (opcional, só no PDF)")}
+        <Tr editor={ed} label="Frase final (opcional)" name="cvClosing" multiline hint="Vai no fim do resumo. Use **texto** para deixar em negrito." />
         <div className="flex flex-wrap gap-2">
           {CV_LINKS.map(([href, label]) => (
             <a key={href} href={href} target="_blank" rel="noopener" className="btn">
-              Ver PDF · {label}
+              {label}
             </a>
           ))}
         </div>

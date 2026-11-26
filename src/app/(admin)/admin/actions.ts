@@ -18,7 +18,8 @@ const authorized = () => requireAdmin().then(() => true, () => false);
 // ---------- Validação (zod) ----------
 // Todos os campos chegam do FormData como texto; checkbox desmarcado simplesmente não vem.
 
-const required = (nome: string) => z.string().trim().min(1, `${nome}: campo obrigatório`);
+// O erro aparece embaixo do próprio campo: repetir o nome dele só alonga a mensagem.
+const required = z.string().trim().min(1, "Campo obrigatório");
 const optional = z.string().optional().transform((v) => v?.trim() || null);
 const checkbox = z.string().optional().transform((v) => v === "on");
 // Select do formulário: vazio = sem rótulo (null); qualquer outro valor fora da lista é rejeitado.
@@ -27,7 +28,7 @@ const level = z.string().optional().transform((v) => v || null)
 const email = z.string().trim().email("E-mail inválido");
 // Só http/https: o z.url() sozinho aceita "javascript:", que viraria XSS num <a href>.
 const isHttpUrl = (v: string) => z.url({ protocol: /^https?$/ }).safeParse(v).success;
-const URL_ERROR = "Endereço inválido (use https://...)";
+const URL_ERROR = "Link inválido: comece com https://";
 const url = z.string().trim().refine(isHttpUrl, URL_ERROR);
 const optionalUrl = z.string().optional().transform((v) => v?.trim() || null)
   .refine((v) => v === null || isHttpUrl(v), URL_ERROR);
@@ -41,10 +42,10 @@ const listEn = z.string().optional().transform((v) => {
 });
 
 const profileSchema = z.object({
-  name: required("Nome"),
-  role: required("Cargo"),
+  name: required,
+  role: required,
   roleEn: optional,
-  summary: required("Resumo"),
+  summary: required,
   summaryEn: optional,
   email,
   githubUrl: url,
@@ -61,9 +62,9 @@ const profileSchema = z.object({
 
 const itemSchemas = {
   project: z.object({
-    title: required("Título"),
+    title: required,
     titleEn: optional,
-    description: required("Descrição"),
+    description: required,
     descriptionEn: optional,
     stack: list,
     stackEn: listEn,
@@ -73,12 +74,12 @@ const itemSchemas = {
     visible: checkbox,
   }),
   experience: z.object({
-    role: required("Cargo"),
+    role: required,
     roleEn: optional,
-    company: required("Empresa"),
-    location: required("Local"),
+    company: required,
+    location: required,
     locationEn: optional,
-    period: required("Período"),
+    period: required,
     periodEn: optional,
     bullets: list,
     bulletsEn: listEn,
@@ -86,27 +87,27 @@ const itemSchemas = {
     visible: checkbox,
   }),
   skill: z.object({
-    name: required("Nome"),
+    name: required,
     nameEn: optional,
-    group: required("Grupo"),
+    group: required,
     groupEn: optional,
     level,
     visible: checkbox,
   }),
   education: z.object({
-    course: required("Curso"),
+    course: required,
     courseEn: optional,
-    school: required("Instituição"),
-    period: required("Período"),
+    school: required,
+    period: required,
     periodEn: optional,
     note: optional,
     noteEn: optional,
     visible: checkbox,
   }),
   language: z.object({
-    name: required("Idioma"),
+    name: required,
     nameEn: optional,
-    level: required("Nível"),
+    level: required,
     levelEn: optional,
     proficiency: z.coerce.number().int("Nível de 1 a 5").min(1, "Nível de 1 a 5").max(5, "Nível de 1 a 5"),
     visible: checkbox,
@@ -138,7 +139,7 @@ type UploadResult = { errors: Record<string, string>; created: string[] } | { ch
 async function readUploads(form: FormData, slots: Slot[]): Promise<UploadResult> {
   const errors: Record<string, string> = {};
   // Só o que foi recusado (tipo/tamanho) é apagado. Chave válida nunca: pode ser a imagem antiga que o Desfazer
-  // reanexou; se o salvamento falhar, "Limpar arquivos soltos" apaga depois de 24 h.
+  // reanexou; se o salvamento falhar, a limpeza de arquivos não usados apaga depois de 24 h.
   const created: string[] = [];
   const changes: Record<string, string | null> = {};
   for (const slot of slots) {
@@ -209,7 +210,8 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 
 // Apaga do armazenamento o que nenhum registro usa. Só mexe em arquivo com mais de 24 h:
 // um envio recém-feito pode estar esperando o formulário ser salvo.
-export async function cleanStorage(): Promise<{ removed: number; freedBytes: number; totalBytes: number }> {
+// apply=false só conta (o painel mostra antes o que vai sair); true apaga.
+export async function cleanStorage(apply: boolean): Promise<{ removed: number; freedBytes: number; totalBytes: number }> {
   await requireAdmin();
   const [objects, profile, projects] = await Promise.all([
     listObjects(),
@@ -219,7 +221,7 @@ export async function cleanStorage(): Promise<{ removed: number; freedBytes: num
   const used = new Set([profile?.photoPath, ...projects.map((p) => p.imagePath)]);
   const cutoff = Date.now() - DAY_MS;
   const loose = objects.filter((o) => isStoredKey(o.key) && !used.has(o.key) && o.lastModified.getTime() < cutoff);
-  await removeStored(loose.map((o) => o.key));
+  if (apply === true) await removeStored(loose.map((o) => o.key));
   const freedBytes = loose.reduce((n, o) => n + o.size, 0);
   const totalBytes = objects.reduce((n, o) => n + o.size, 0) - freedBytes;
   return { removed: loose.length, freedBytes, totalBytes };

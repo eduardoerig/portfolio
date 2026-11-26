@@ -64,7 +64,7 @@ export default function EditorFrame({ title, editor, autosave, preview, cancel, 
               {status === "saved" && (
                 <>
                   <span>Salvo ✓</span>
-                  {undo && <button type="button" onClick={undo} className="btn">Desfazer</button>}
+                  {undo && <button type="button" onClick={undo} className="btn">Desfazer última gravação</button>}
                 </>
               )}
               {status === "invalid" && <span role="alert" className="text-[var(--danger)]">Corrija os campos destacados.</span>}
@@ -83,7 +83,7 @@ export default function EditorFrame({ title, editor, autosave, preview, cancel, 
               )}
             </div>
           ) : (
-            <button type="submit" disabled={pending} className="btn btn-primary">{uploading ? "Enviando..." : pending ? "Salvando..." : "Criar"}</button>
+            <button type="submit" disabled={pending} className="btn btn-primary">{uploading ? "Enviando…" : pending ? "Salvando…" : "Criar"}</button>
           )}
           {cancel}
         </div>

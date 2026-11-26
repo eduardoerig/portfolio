@@ -200,14 +200,18 @@ describe("cleanStorage", () => {
     bucket.set(d, { size: 500, contentType: "application/pdf", modified: old });
     await db.profile.update({ where: { id: 1 }, data: { photoPath: a, cvPath: d } });
 
-    expect(await actions.cleanStorage()).toEqual({ removed: 2, freedBytes: 1500, totalBytes: 500 });
+    // Primeiro só mostra o que apagaria; nada sai do armazenamento.
+    expect(await actions.cleanStorage(false)).toEqual({ removed: 2, freedBytes: 1500, totalBytes: 500 });
+    expect(bucket.size).toBe(4);
+    expect(storage.deleteObject).not.toHaveBeenCalled();
+    expect(await actions.cleanStorage(true)).toEqual({ removed: 2, freedBytes: 1500, totalBytes: 500 });
     expect([...bucket.keys()].sort()).toEqual([a, c].sort());
     await db.profile.update({ where: { id: 1 }, data: { photoPath: null, cvPath: null } });
   });
 
   it("sem sessão não apaga nada", async () => {
     requireAdmin.mockRejectedValue(new Error("Não autorizado"));
-    await expect(actions.cleanStorage()).rejects.toThrow("Não autorizado");
+    await expect(actions.cleanStorage(true)).rejects.toThrow("Não autorizado");
     expect(storage.listObjects).not.toHaveBeenCalled();
     expect(storage.deleteObject).not.toHaveBeenCalled();
   });

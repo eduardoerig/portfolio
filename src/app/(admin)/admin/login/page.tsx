@@ -30,7 +30,7 @@ export default function LoginPage() {
         </label>
         {state.error && <p role="alert" className="text-sm text-[var(--danger)]">{state.error}</p>}
         <button type="submit" disabled={pending} className="btn btn-primary">
-          {pending ? "Entrando..." : "Entrar"}
+          {pending ? "Entrando…" : "Entrar"}
         </button>
       </form>
     </main>

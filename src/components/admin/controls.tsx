@@ -68,8 +68,8 @@ export function Check({ label, name, checked, onChange }: {
 export function ActionError() {
   return (
     <p role="alert" className="text-sm text-[var(--danger)]">
-      Não foi possível salvar. Sua sessão pode ter expirado ou o arquivo é grande demais — entre de novo em outra aba (o que você digitou fica aqui) e volte para salvar.{" "}
-      <Link href="/admin/login" target="_blank" rel="noopener noreferrer" className="underline">Ir para o login (nova aba)</Link>
+      Não foi possível salvar. Sua sessão pode ter expirado, ou o arquivo é grande demais. O que você digitou continua aqui.{" "}
+      <Link href="/admin/login" target="_blank" rel="noopener noreferrer" className="underline">Entrar de novo em outra aba</Link>
     </p>
   );
 }

@@ -13,7 +13,7 @@ export default function ItemCard({ kind, row, href }: { kind: Kind; row: Row; hr
   const level = kind === "skill" ? toLevel(row.level as string | null) : undefined;
 
   return (
-    <GuardedLink href={href} className={`card flex min-w-0 flex-1 items-center gap-3 ${row.visible ? "" : "opacity-50"}`}>
+    <GuardedLink href={href} className={`card flex min-w-0 flex-1 items-center gap-3 ${row.visible ? "" : "border-dashed"}`}>
       {kind === "project" &&
         (fileUrl(s("imagePath")) ? (
           // eslint-disable-next-line @next/next/no-img-element

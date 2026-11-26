@@ -93,11 +93,11 @@ describe("ProfileEditor", () => {
 
   it("tem os campos do currículo, links para os PDFs e nenhum upload de PDF", () => {
     wrap(<ProfileEditor row={profileRow} />);
-    for (const label of ["Nome completo (currículo)", "Cidade", "Telefone (só no PDF)", "Frase final do currículo"]) {
+    for (const label of ["Nome completo (opcional)", "Cidade (opcional)", "Telefone (opcional, só no PDF)", "Frase final (opcional)"]) {
       expect(screen.getByLabelText(label, { exact: false })).toBeTruthy(); // o rótulo também traz a dica
     }
     expect(screen.queryByText("Currículo (PDF)")).toBeNull();
-    const hrefs = screen.getAllByRole("link", { name: /Ver PDF/ }).map((a) => [a.getAttribute("href"), a.getAttribute("target")]);
+    const hrefs = screen.getAllByRole("link", { name: /^Currículo/ }).map((a) => [a.getAttribute("href"), a.getAttribute("target")]);
     expect(hrefs).toEqual([
       ["/curriculo.pdf", "_blank"],
       ["/curriculo.pdf?modelo=simples", "_blank"],
@@ -152,7 +152,7 @@ describe("ItemEditor existente", () => {
     expect(refresh).not.toHaveBeenCalled();
     expect(push).not.toHaveBeenCalled();
     expect(screen.getByText("Salvo ✓")).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Desfazer" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Desfazer última gravação" })).toBeTruthy();
   });
 
   it("etiqueta nova vai no FormData uma por linha", async () => {
@@ -179,7 +179,7 @@ describe("ItemEditor existente", () => {
     vi.useFakeTimers();
     wrap(<ItemEditor kind="project" row={project} base="/admin/projetos" />);
     type("Título", "Pendente");
-    fireEvent.click(screen.getByRole("link", { name: "Voltar" }));
+    fireEvent.click(screen.getByRole("link", { name: "Voltar para a lista" }));
     await wait(0);
     expect(saveItem).toHaveBeenCalledTimes(1);
     expect(push).toHaveBeenCalledWith("/admin/projetos");
@@ -192,13 +192,13 @@ describe("ItemEditor existente", () => {
     vi.useFakeTimers();
     wrap(<ItemEditor kind="project" row={project} base="/admin/projetos" />);
     type("Título", "x");
-    fireEvent.click(screen.getByRole("link", { name: "Voltar" }));
+    fireEvent.click(screen.getByRole("link", { name: "Voltar para a lista" }));
     await wait(0);
     expect(saveItem).toHaveBeenCalledTimes(1);
     expect(confirmFn).toHaveBeenCalledWith("Há alterações não salvas. Sair mesmo assim?");
     expect(push).not.toHaveBeenCalled();
     confirmFn.mockReturnValue(true);
-    fireEvent.click(screen.getByRole("link", { name: "Voltar" }));
+    fireEvent.click(screen.getByRole("link", { name: "Voltar para a lista" }));
     await wait(0);
     expect(push).toHaveBeenCalledWith("/admin/projetos");
     vi.unstubAllGlobals();
@@ -209,7 +209,7 @@ describe("ItemEditor existente", () => {
     wrap(<ItemEditor kind="project" row={project} base="/admin/projetos" />);
     type("Título", "Outro");
     await wait();
-    fireEvent.click(screen.getByRole("button", { name: "Desfazer" }));
+    fireEvent.click(screen.getByRole("button", { name: "Desfazer última gravação" }));
     await wait();
     expect(saveItem).toHaveBeenCalledTimes(2);
     expect((saveItem.mock.calls[1][1] as FormData).get("title")).toBe("Pedidos");
@@ -233,7 +233,7 @@ describe("ItemEditor novo", () => {
   it("tem 'Cancelar' e não tem 'Voltar'", () => {
     wrap(<ItemEditor kind="project" row={null} base="/admin/projetos" />);
     expect(screen.getByText("Cancelar")).toBeTruthy();
-    expect(screen.queryByRole("link", { name: "Voltar" })).toBeNull();
+    expect(screen.queryByRole("link", { name: "Voltar para a lista" })).toBeNull();
   });
 
   it("guarda a imagem até o Criar", async () => {
@@ -291,7 +291,7 @@ describe("imagem do item", () => {
   it("depois de remover aparece Desfazer", async () => {
     wrap(<ItemEditor kind="project" row={withImage} base="/admin/projetos" />);
     fireEvent.click(screen.getByRole("button", { name: "Remover" }));
-    expect(await screen.findByRole("button", { name: "Desfazer" })).toBeTruthy();
+    expect(await screen.findByRole("button", { name: "Desfazer última gravação" })).toBeTruthy();
   });
 
   it("competências do EN aparecem em inglês na prévia", () => {

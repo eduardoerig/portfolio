@@ -3,11 +3,12 @@ export type UploadKind = "image" | "pdf";
 
 const MB = 1024 * 1024;
 export const MAX_BYTES: Record<UploadKind, number> = { image: 3 * MB, pdf: 5 * MB };
-export const SIZE_ERROR = "Arquivo maior que o limite";
+// A mensagem diz o limite: "maior que o limite" sozinho não ajuda a escolher outro arquivo.
+export const sizeError = (kind: UploadKind) => `Arquivo maior que ${MAX_BYTES[kind] / MB} MB`;
 
 // Devolve a mensagem de erro se o arquivo passa do limite, senão null.
 export function checkFileSize(file: { size: number }, kind: UploadKind): string | null {
-  return file.size > MAX_BYTES[kind] ? SIZE_ERROR : null;
+  return file.size > MAX_BYTES[kind] ? sizeError(kind) : null;
 }
 
 // Confere os campos de arquivo de um FormData antes de enviar (campo -> tipo). Devolve erros por campo.
