@@ -5,6 +5,7 @@ import type { FormState } from "@/app/(admin)/admin/actions";
 import type { Locale } from "@/i18n/locales";
 import { type Draft, type EditorKind, draftToFormData, rowToDraft } from "@/lib/adminDraft";
 import { fileUrl } from "@/lib/fileUrl";
+import { parseForm, schemaFor } from "@/lib/formSchema";
 import { uploadFile } from "@/lib/uploadClient";
 import { useAdminStatus } from "./AdminStatus";
 
@@ -82,8 +83,6 @@ export function useEditor({ kind, row, save, onSaved, autosave }: Options) {
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const held = useRef(false); // gravação adiada até sair do campo vazio
   const tries = useRef(0); // falhas de conexão seguidas
-  const localeRef = useRef(locale);
-  localeRef.current = locale;
 
   const setDraft = (fn: (d: Draft) => Draft) => {
     draftRef.current = fn(draftRef.current);
@@ -143,9 +142,6 @@ export function useEditor({ kind, row, save, onSaved, autosave }: Options) {
       if (!result.ok) uploaded.current = new WeakMap();
       const errs = result.errors ?? {};
       setErrors(errs);
-      // erro só no outro idioma: vai para ele, senão o campo com a mensagem fica escondido
-      const langs = Object.keys(errs).map((k): Locale => (k.endsWith("En") ? "en" : "pt"));
-      if (langs.length && !langs.includes(localeRef.current)) setLocale(langs[0]);
       setFailed(false);
       if (!result.ok) {
         setStatus("invalid");
@@ -296,6 +292,19 @@ export function useEditor({ kind, row, save, onSaved, autosave }: Options) {
       }
     : null;
 
+  // Ao sair de um campo: roda a mesma validação do servidor (gerada do modelo) só para ele.
+  const validateField = (name: string) => {
+    const r = parseForm(schemaFor(kind), Object.fromEntries(draftToFormData(draftRef.current, {}, [])));
+    const msg = "errors" in r ? r.errors[name] : undefined;
+    setErrors((e) => {
+      if (e[name] === msg) return e;
+      const next = { ...e };
+      if (msg) next[name] = msg;
+      else delete next[name];
+      return next;
+    });
+  };
+
   const imageUrl = (name: string) => urls[name] ?? fileUrl(pathOf(draft, name));
 
   // Ctrl+S / Cmd+S e a saída usam sempre as funções mais recentes.
@@ -373,7 +382,7 @@ export function useEditor({ kind, row, save, onSaved, autosave }: Options) {
   urlsRef.current = urls;
   useEffect(() => () => Object.values(urlsRef.current).forEach((u) => URL.revokeObjectURL(u)), []);
 
-  return { draft, set, touch, locale, setLocale, errors, failed, pending, uploading, submit, status, flush, undo, imageUrl, pickImage, removeImage };
+  return { draft, set, touch, locale, setLocale, errors, validateField, failed, pending, uploading, submit, status, flush, undo, imageUrl, pickImage, removeImage };
 }
 
 export type Editor = ReturnType<typeof useEditor>;

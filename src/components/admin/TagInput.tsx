@@ -9,8 +9,10 @@ const X = (
 );
 
 // Lista de textos: etiquetas (stack) ou, com `long`, linhas editáveis (realizações).
-export default function TagInput({ label, value, onChange, onPending, placeholder, hint, error, long }: {
+export default function TagInput({ label, inputLabel, value, onChange, onPending, placeholder, hint, error, long }: {
   label: string;
+  /** Nome do campo para leitor de tela quando o rótulo visível é curto (ex.: "PT"/"EN" no campo traduzível). */
+  inputLabel?: string;
   value: string[];
   onChange: (v: string[]) => void;
   onPending?: () => void; // há texto digitado ainda não confirmado: conta como alteração
@@ -42,11 +44,11 @@ export default function TagInput({ label, value, onChange, onPending, placeholde
 
   return (
     <div className="flex flex-col gap-1 text-sm">
-      <label htmlFor={id}>{label}</label>
+      {label && <label htmlFor={id}>{label}</label>}
       {long && value.map((text, i) => (
         <div key={i} className="flex items-center gap-2">
           <input
-            aria-label={`${label} ${i + 1}`}
+            aria-label={`${inputLabel ?? label} ${i + 1}`}
             value={text}
             className={inputClass}
             onChange={(e) => onChange(value.map((t, j) => (j === i ? e.target.value : t)))}
@@ -72,6 +74,7 @@ export default function TagInput({ label, value, onChange, onPending, placeholde
           onBlur={commit}
           onKeyDown={onKeyDown}
           className="min-w-24 flex-1 bg-transparent outline-none"
+          aria-label={inputLabel}
           {...d.props}
         />
       </div>

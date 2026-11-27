@@ -14,11 +14,13 @@ type Props = {
   kind: EditorKind;
   draft: Draft;
   locale: Locale;
+  /** Troca o idioma da prévia (botões PT/EN); sem ele, só mostra o idioma. */
+  onLocale?: (l: Locale) => void;
   fileUrl?: string | null;
   siblings?: Skill[];
 };
 
-export default function Preview({ kind, draft, locale, fileUrl, siblings = [] }: Props) {
+export default function Preview({ kind, draft, locale, onLocale, fileUrl, siblings = [] }: Props) {
   const dict = getDictionary(locale);
 
   function body() {
@@ -59,7 +61,24 @@ export default function Preview({ kind, draft, locale, fileUrl, siblings = [] }:
         <span className="font-mono text-sm text-muted">{"// prévia"}</span>
         <span className="flex items-center gap-2">
           {draft.visible === false && <span className="chip">oculto — não aparece no site</span>}
-          <span className="pill">{locale.toUpperCase()}</span>
+          {onLocale ? (
+            <span role="group" aria-label="Idioma da prévia" className="flex gap-1">
+              {(["pt", "en"] as const).map((l) => (
+                <button
+                  key={l}
+                  type="button"
+                  aria-label={`Prévia em ${l.toUpperCase()}`}
+                  aria-pressed={locale === l}
+                  onClick={() => onLocale(l)}
+                  className={`pill ${locale === l ? "pill-accent" : ""}`}
+                >
+                  {l.toUpperCase()}
+                </button>
+              ))}
+            </span>
+          ) : (
+            <span className="pill">{locale.toUpperCase()}</span>
+          )}
           <ThemeToggle dict={dict.theme} />
         </span>
       </div>

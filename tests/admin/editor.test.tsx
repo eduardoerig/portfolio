@@ -86,11 +86,11 @@ describe("ProfileEditor", () => {
     expect(updateProfile).toHaveBeenCalledTimes(2);
   });
 
-  it("idioma é um par de botões com estado pressionado", () => {
+  it("idioma da prévia é um par de botões com estado pressionado", () => {
     wrap(<ProfileEditor row={profileRow} />);
-    expect(screen.getByRole("button", { name: /^PT/, pressed: true })).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: /^EN/, pressed: false }));
-    expect(screen.getByRole("button", { name: /^EN/, pressed: true })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Prévia em PT", pressed: true })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Prévia em EN", pressed: false }));
+    expect(screen.getByRole("button", { name: "Prévia em EN", pressed: true })).toBeTruthy();
   });
 
   it("no celular a prévia abre por um botão (sem duplicar a prévia)", () => {
@@ -108,8 +108,8 @@ describe("ProfileEditor", () => {
 
   it("tem os campos do currículo, links para os PDFs e nenhum upload de PDF", () => {
     wrap(<ProfileEditor row={profileRow} />);
-    for (const label of ["Nome completo (opcional)", "Cidade (opcional)", "Telefone (opcional, só no PDF)", "Frase final (opcional)"]) {
-      expect(screen.getByLabelText(label, { exact: false })).toBeTruthy(); // o rótulo também traz a dica
+    for (const label of ["Nome completo", "Cidade em português", "Telefone", "Frase final em português"]) {
+      expect(screen.getByLabelText(label)).toBeTruthy();
     }
     expect(screen.queryByText("Currículo (PDF)")).toBeNull();
     const hrefs = screen.getAllByRole("link", { name: /^Currículo/ }).map((a) => [a.getAttribute("href"), a.getAttribute("target")]);
@@ -121,10 +121,9 @@ describe("ProfileEditor", () => {
     ]);
   });
 
-  it("no modo EN o Cargo mostra roleEn e o português como placeholder", () => {
+  it("o Cargo em inglês mostra roleEn e o português como placeholder", () => {
     wrap(<ProfileEditor row={profileRow} />);
-    fireEvent.click(screen.getByRole("button", { name: /^EN/, pressed: false }));
-    const role = screen.getByLabelText("Cargo") as HTMLInputElement;
+    const role = screen.getByLabelText("Cargo em inglês") as HTMLInputElement;
     expect(role.value).toBe("Developer");
     expect(role.placeholder).toBe("Desenvolvedora");
   });
@@ -159,7 +158,7 @@ describe("ItemEditor existente", () => {
   it("digitar e esperar 800 ms grava sem clicar em nada", async () => {
     vi.useFakeTimers();
     wrap(<ItemEditor kind="project" row={project} base="/admin/projetos" />);
-    type("Título", "Novo título");
+    type("Título em português", "Novo título");
     expect(saveItem).not.toHaveBeenCalled();
     await wait();
     expect(saveItem).toHaveBeenCalledTimes(1);
@@ -173,7 +172,7 @@ describe("ItemEditor existente", () => {
   it("etiqueta nova vai no FormData uma por linha", async () => {
     vi.useFakeTimers();
     wrap(<ItemEditor kind="project" row={project} base="/admin/projetos" />);
-    const tags = screen.getByLabelText("Tecnologias");
+    const tags = screen.getByLabelText("Tecnologias em português");
     fireEvent.change(tags, { target: { value: "MySQL" } });
     fireEvent.keyDown(tags, { key: "Enter" });
     await wait();
@@ -184,7 +183,7 @@ describe("ItemEditor existente", () => {
     saveItem.mockResolvedValue({ errors: { title: "Título: campo obrigatório" } });
     vi.useFakeTimers();
     wrap(<ItemEditor kind="project" row={project} base="/admin/projetos" />);
-    type("Título", "x");
+    type("Título em português", "x");
     await wait();
     expect(screen.getByText("Título: campo obrigatório")).toBeTruthy();
     expect(screen.getByText("Corrija os campos destacados.")).toBeTruthy();
@@ -193,7 +192,7 @@ describe("ItemEditor existente", () => {
   it("Voltar grava a edição pendente antes de navegar", async () => {
     vi.useFakeTimers();
     wrap(<ItemEditor kind="project" row={project} base="/admin/projetos" />);
-    type("Título", "Pendente");
+    type("Título em português", "Pendente");
     fireEvent.click(screen.getByRole("link", { name: "Voltar para a lista" }));
     await wait(0);
     expect(saveItem).toHaveBeenCalledTimes(1);
@@ -206,7 +205,7 @@ describe("ItemEditor existente", () => {
     vi.stubGlobal("confirm", confirmFn);
     vi.useFakeTimers();
     wrap(<ItemEditor kind="project" row={project} base="/admin/projetos" />);
-    type("Título", "x");
+    type("Título em português", "x");
     fireEvent.click(screen.getByRole("link", { name: "Voltar para a lista" }));
     await wait(0);
     expect(saveItem).toHaveBeenCalledTimes(1);
@@ -222,7 +221,7 @@ describe("ItemEditor existente", () => {
   it("Desfazer grava de novo a versão anterior", async () => {
     vi.useFakeTimers();
     wrap(<ItemEditor kind="project" row={project} base="/admin/projetos" />);
-    type("Título", "Outro");
+    type("Título em português", "Outro");
     await wait();
     fireEvent.click(screen.getByRole("button", { name: "Desfazer última gravação" }));
     await wait();
@@ -235,7 +234,7 @@ describe("ItemEditor novo", () => {
   it("não grava sozinho; 'Criar' grava e volta para a lista", async () => {
     vi.useFakeTimers();
     wrap(<ItemEditor kind="project" row={null} base="/admin/projetos" />);
-    type("Título", "Novo");
+    type("Título em português", "Novo");
     await wait(2000);
     expect(saveItem).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole("button", { name: "Criar" }));
@@ -253,8 +252,8 @@ describe("ItemEditor novo", () => {
 
   it("guarda a imagem até o Criar", async () => {
     wrap(<ItemEditor kind="project" row={null} base="/admin/projetos" />);
-    type("Título", "Novo");
-    pickFile("Imagem (opcional)");
+    type("Título em português", "Novo");
+    pickFile("Imagem");
     await act(async () => {});
     expect(saveItem).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole("button", { name: "Criar" }));
@@ -266,7 +265,7 @@ describe("ItemEditor novo", () => {
 describe("não perder o que foi digitado", () => {
   it("Ctrl+S também leva o texto pendente da etiqueta", async () => {
     wrap(<ItemEditor kind="project" row={project} base="/admin/projetos" />);
-    const tags = screen.getByLabelText("Tecnologias");
+    const tags = screen.getByLabelText("Tecnologias em português");
     tags.focus();
     fireEvent.change(tags, { target: { value: "MySQL" } });
     await act(async () => void window.dispatchEvent(new KeyboardEvent("keydown", { key: "s", ctrlKey: true, cancelable: true })));
@@ -287,7 +286,7 @@ describe("imagem do item", () => {
 
   it("escolher grava na hora só com a chave", async () => {
     wrap(<ItemEditor kind="project" row={project} base="/admin/projetos" />);
-    pickFile("Imagem (opcional)");
+    pickFile("Imagem");
     await waitFor(() => expect(saveItem).toHaveBeenCalled());
     const fd = saveItem.mock.calls[0][1] as FormData;
     expect(fd.get("imageKey")).toBe(KEY);
@@ -317,7 +316,7 @@ describe("imagem do item", () => {
     const row = { id: 2, name: "Go", nameEn: "", group: "Back-end", groupEn: "", level: "", visible: true };
     wrap(<ItemEditor kind="skill" row={row} base="/admin/competencias" siblings={siblings} />);
     expect(screen.getByText("Banco de dados")).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: /^EN/, pressed: false }));
+    fireEvent.click(screen.getByRole("button", { name: "Prévia em EN", pressed: false }));
     expect(screen.getByText("Databases")).toBeTruthy();
     expect(screen.queryByText("Banco de dados")).toBeNull();
   });
@@ -334,16 +333,16 @@ describe("guardas do editor", () => {
     const out: { dirty?: boolean } = {};
     wrap(<><Probe out={out} /><ItemEditor kind="project" row={project} base="/admin/projetos" /></>);
     expect(out.dirty).toBe(false);
-    type("Título", "B");
+    type("Título em português", "B");
     expect(out.dirty).toBe(true);
     await wait();
     expect(out.dirty).toBe(false);
   });
 
-  it("ponto do EN não aparece com lista vazia em português", () => {
+  it("'falta traduzir' não aparece com português vazio; aparece quando ele é preenchido", () => {
     wrap(<ItemEditor kind="project" row={{ ...project, stack: "[]", title: "", description: "" }} base="/admin/projetos" />);
-    expect(screen.queryByText("tradução incompleta")).toBeNull();
-    type("Título", "Pedidos");
-    expect(screen.getByText("tradução incompleta").className).toContain("sr-only");
+    expect(screen.queryByText("falta traduzir")).toBeNull();
+    type("Título em português", "Pedidos");
+    expect(screen.getAllByText("falta traduzir")).toHaveLength(1);
   });
 });

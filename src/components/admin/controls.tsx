@@ -57,15 +57,16 @@ export function Field({ label, name, value, onChange, error, multiline, hint, pl
   );
 }
 
-export function Select({ label, name, value, onChange, options, error }: {
+export function Select({ label, name, value, onChange, options, error, hint }: {
   label: string;
   name: string;
   value: string;
   onChange: (v: string) => void;
   options: readonly (readonly [value: string, text: string])[];
   error?: string;
+  hint?: string;
 }) {
-  const d = useDescribed(undefined, error);
+  const d = useDescribed(hint, error);
   return (
     <div className="flex flex-col gap-1 text-sm">
       <label className="flex flex-col gap-1">
@@ -74,6 +75,7 @@ export function Select({ label, name, value, onChange, options, error }: {
         {options.map(([v, text]) => <option key={v} value={v}>{text}</option>)}
       </select>
       </label>
+      <Hint id={d.hintId} text={hint} />
       <Err id={d.errorId} error={error} />
     </div>
   );

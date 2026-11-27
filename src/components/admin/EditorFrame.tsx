@@ -1,24 +1,21 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
-import type { Locale } from "@/i18n/locales";
-import { ActionError, Field } from "./controls";
-import TagInput from "./TagInput";
+import { ActionError } from "./controls";
 import type { Editor } from "./useEditor";
 
 // Esquerda: formulário; direita: prévia. Abaixo de lg a prévia abre por um botão, acima do formulário.
-export default function EditorFrame({ title, editor, autosave, preview, cancel, children }: {
+export default function EditorFrame({ title, editor, autosave, preview, cancel, header, children }: {
   title: string;
   editor: Editor;
   autosave: boolean;
   preview: ReactNode;
   cancel?: ReactNode;
+  /** Chaves do cabeçalho (ex.: "Visível no site"). */
+  header?: ReactNode;
   children: ReactNode;
 }) {
-  const { draft, locale, setLocale, failed, pending, uploading, submit, flush, errors, status, undo } = editor;
-  // Ponto no EN quando há texto em português sem a tradução.
-  const empty = (v: unknown) => (Array.isArray(v) ? v.length === 0 : !v);
-  const missing = Object.entries(draft).some(([k, v]) => k.endsWith("En") && empty(v) && !empty(draft[k.slice(0, -2)]));
+  const { failed, pending, uploading, submit, flush, errors, status, undo } = editor;
   const [showPreview, setShowPreview] = useState(false);
 
   return (
@@ -27,6 +24,7 @@ export default function EditorFrame({ title, editor, autosave, preview, cancel, 
         {showPreview ? "Esconder prévia" : "Ver prévia"}
       </button>
       <form
+        noValidate
         onSubmit={(e) => {
           e.preventDefault();
           void (autosave ? flush() : submit());
@@ -35,26 +33,9 @@ export default function EditorFrame({ title, editor, autosave, preview, cancel, 
       >
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h2 className="min-w-0 break-words text-lg font-semibold">{title}</h2>
-          <div role="group" aria-label="Idioma do conteúdo" className="flex gap-1">
-            {(["pt", "en"] as Locale[]).map((l) => (
-              <button
-                key={l}
-                type="button"
-                aria-pressed={locale === l}
-                onClick={() => setLocale(l)}
-                className={`btn px-3 ${locale === l ? "btn-primary" : ""}`}
-              >
-                {l.toUpperCase()}
-                {l === "en" && missing && (
-                  <>
-                    <span aria-hidden="true" className="ml-1 inline-block size-2 rounded-full bg-[var(--accent)]" />
-                    <span className="sr-only">tradução incompleta</span>
-                  </>
-                )}
-              </button>
-            ))}
-          </div>
+          {header}
         </div>
+        <p className="text-xs text-[var(--muted)]">* obrigatório</p>
         {children}
         {!autosave && failed && <ActionError />}
         {!autosave && Object.keys(errors).length > 0 && <p role="alert" className="text-sm text-[var(--danger)]">Corrija os campos destacados.</p>}
@@ -93,40 +74,5 @@ export default function EditorFrame({ title, editor, autosave, preview, cancel, 
       </form>
       <div className={`${showPreview ? "order-first" : "hidden"} min-w-0 lg:order-none lg:block`}>{preview}</div>
     </div>
-  );
-}
-
-// Campo traduzível: PT mostra `name`, EN mostra `${name}En` com o português de placeholder.
-export function Tr({ editor, label, name, multiline, hint }: { editor: Editor; label: string; name: string; multiline?: boolean; hint?: string }) {
-  const { draft, locale, set, errors } = editor;
-  const key = locale === "en" ? `${name}En` : name;
-  return (
-    <Field
-      label={label}
-      name={key}
-      value={String(draft[key] ?? "")}
-      onChange={(v) => set(key, v)}
-      error={errors[key]}
-      multiline={multiline}
-      hint={hint}
-      placeholder={locale === "en" ? String(draft[name] ?? "") : undefined}
-    />
-  );
-}
-
-export function TrList({ editor, label, name, long, hint }: { editor: Editor; label: string; name: string; long?: boolean; hint?: string }) {
-  const { draft, locale, set, errors } = editor;
-  const key = locale === "en" ? `${name}En` : name;
-  return (
-    <TagInput
-      label={label}
-      value={draft[key] as string[]}
-      onChange={(v) => set(key, v)}
-      onPending={editor.touch}
-      error={errors[key]}
-      long={long}
-      hint={hint}
-      placeholder={locale === "en" ? (draft[name] as string[]).join(", ") : undefined}
-    />
   );
 }
