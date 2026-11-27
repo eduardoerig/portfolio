@@ -1,5 +1,6 @@
 import type { Locale } from "@/i18n/locales";
 import { fileUrl } from "@/lib/fileUrl";
+import { fieldNames } from "@/lib/formModel";
 import { parseList } from "@/lib/lists";
 import { pick, pickList, pickNull, toLevel } from "@/lib/localize";
 import type { Kind } from "@/lib/tables";
@@ -13,16 +14,7 @@ export type Draft = Record<string, string | boolean | string[]>;
 export const LIST_FIELDS = ["stack", "stackEn", "bullets", "bulletsEn"];
 export const BOOL_FIELDS = ["visible", "current", "openToWork"];
 
-// Os campos que a action de cada kind lê (ver os schemas em actions.ts).
-const FIELDS: Record<EditorKind, string[]> = {
-  profile: ["name", "role", "roleEn", "summary", "summaryEn", "email", "githubUrl", "linkedinUrl", "openToWork",
-    "fullName", "location", "locationEn", "phone", "cvClosing", "cvClosingEn"],
-  project: ["title", "titleEn", "description", "descriptionEn", "stack", "stackEn", "url", "metric", "metricEn", "visible"],
-  experience: ["role", "roleEn", "company", "location", "locationEn", "period", "periodEn", "bullets", "bulletsEn", "current", "visible"],
-  skill: ["name", "nameEn", "group", "groupEn", "level", "visible"],
-  education: ["course", "courseEn", "school", "period", "periodEn", "note", "noteEn", "visible"],
-  language: ["name", "nameEn", "level", "levelEn", "proficiency", "visible"],
-};
+// Os campos que a action de cada kind lê saem do modelo dos formulários.
 
 const fieldValue = (k: string, v: unknown) =>
   LIST_FIELDS.includes(k) ? parseList(v as string | null) : BOOL_FIELDS.includes(k) ? Boolean(v) : String(v ?? "");
@@ -30,7 +22,7 @@ const fieldValue = (k: string, v: unknown) =>
 export function rowToDraft(row: Record<string, unknown> | null, kind: EditorKind): Draft {
   if (!row) {
     const d: Draft = { id: "" };
-    for (const k of FIELDS[kind]) d[k] = fieldValue(k, null);
+    for (const k of fieldNames(kind)) d[k] = fieldValue(k, null);
     if (kind !== "profile") d.visible = true;
     if (kind === "language") d.proficiency = "3"; // a barra começa no meio
     return d;

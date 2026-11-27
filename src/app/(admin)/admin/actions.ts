@@ -1,9 +1,10 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { z } from "zod";
 import { requireAdmin } from "@/lib/auth";
+import type { EditorKind } from "@/lib/adminDraft";
 import { db } from "@/lib/db";
+import { parseForm, schemaFor } from "@/lib/formSchema";
 import { TITLE_KEY } from "@/lib/itemTitle";
 import { moveItem } from "@/lib/reorder";
 import { assertKind, ORDER, table, type Kind } from "@/lib/tables";
@@ -16,112 +17,9 @@ export type FormState = { ok?: boolean; errors?: Record<string, string>; unautho
 // Gravar do editor: sessão vencida volta como resposta (o painel avisa e guarda o texto) em vez de erro.
 const authorized = () => requireAdmin().then(() => true, () => false);
 
-// ---------- Validação (zod) ----------
-// Todos os campos chegam do FormData como texto; checkbox desmarcado simplesmente não vem.
-
-// O erro aparece embaixo do próprio campo: repetir o nome dele só alonga a mensagem.
-const required = z.string().trim().min(1, "Campo obrigatório");
-const optional = z.string().optional().transform((v) => v?.trim() || null);
-const checkbox = z.string().optional().transform((v) => v === "on");
-// Select do formulário: vazio = sem rótulo (null); qualquer outro valor fora da lista é rejeitado.
-const level = z.string().optional().transform((v) => v || null)
-  .pipe(z.enum(["learning", "intermediate"], "Nível inválido").nullable());
-const email = z.string().trim().email("E-mail inválido");
-// Só http/https: o z.url() sozinho aceita "javascript:", que viraria XSS num <a href>.
-const isHttpUrl = (v: string) => z.url({ protocol: /^https?$/ }).safeParse(v).success;
-const URL_ERROR = "Link inválido: comece com https://";
-const url = z.string().trim().refine(isHttpUrl, URL_ERROR);
-const optionalUrl = z.string().optional().transform((v) => v?.trim() || null)
-  .refine((v) => v === null || isHttpUrl(v), URL_ERROR);
-
-// Textarea "um por linha" -> array limpo (sem linhas vazias) guardado como JSON.
-const toLines = (v: string) => v.split("\n").map((l) => l.trim()).filter(Boolean);
-const list = z.string().optional().transform((v) => JSON.stringify(toLines(v ?? "")));
-const listEn = z.string().optional().transform((v) => {
-  const lines = toLines(v ?? "");
-  return lines.length ? JSON.stringify(lines) : null; // vazio = cai no português
-});
-
-const profileSchema = z.object({
-  name: required,
-  role: required,
-  roleEn: optional,
-  summary: required,
-  summaryEn: optional,
-  email,
-  githubUrl: url,
-  linkedinUrl: url,
-  openToWork: checkbox,
-  // Só no currículo em PDF.
-  fullName: optional,
-  location: optional,
-  locationEn: optional,
-  phone: optional,
-  cvClosing: optional,
-  cvClosingEn: optional,
-});
-
-const itemSchemas = {
-  project: z.object({
-    title: required,
-    titleEn: optional,
-    description: required,
-    descriptionEn: optional,
-    stack: list,
-    stackEn: listEn,
-    url: optionalUrl,
-    metric: optional,
-    metricEn: optional,
-    visible: checkbox,
-  }),
-  experience: z.object({
-    role: required,
-    roleEn: optional,
-    company: required,
-    location: required,
-    locationEn: optional,
-    period: required,
-    periodEn: optional,
-    bullets: list,
-    bulletsEn: listEn,
-    current: checkbox,
-    visible: checkbox,
-  }),
-  skill: z.object({
-    name: required,
-    nameEn: optional,
-    group: required,
-    groupEn: optional,
-    level,
-    visible: checkbox,
-  }),
-  education: z.object({
-    course: required,
-    courseEn: optional,
-    school: required,
-    period: required,
-    periodEn: optional,
-    note: optional,
-    noteEn: optional,
-    visible: checkbox,
-  }),
-  language: z.object({
-    name: required,
-    nameEn: optional,
-    level: required,
-    levelEn: optional,
-    proficiency: z.coerce.number().int("Nível de 1 a 5").min(1, "Nível de 1 a 5").max(5, "Nível de 1 a 5"),
-    visible: checkbox,
-  }),
-};
-
-function parse<T extends z.ZodType>(schema: T, form: FormData): { data: z.output<T> } | { errors: Record<string, string> } {
-  const result = schema.safeParse(Object.fromEntries(form));
-  if (result.success) return { data: result.data };
-  const errors: Record<string, string> = {};
-  for (const issue of result.error.issues) errors[String(issue.path[0])] ??= issue.message;
-  return { errors };
-}
+// ---------- Validação ----------
+// Gerada do modelo dos formulários (lib/formModel): os mesmos campos e regras que a tela mostra.
+const parse = (kind: EditorKind, form: FormData) => parseForm(schemaFor(kind), Object.fromEntries(form));
 
 const refresh = () => {
   revalidatePath("/");
@@ -230,7 +128,7 @@ export async function cleanStorage(apply: boolean): Promise<{ removed: number; f
 
 export async function updateProfile(form: FormData): Promise<FormState> {
   if (!(await authorized())) return { unauthorized: true };
-  const parsed = parse(profileSchema, form);
+  const parsed = parse("profile", form);
   const current = await db.profile.findUniqueOrThrow({ where: { id: 1 } });
   const up = await readUploads(form, [
     { field: "photo", column: "photoPath", kind: "image", current: current.photoPath },
@@ -249,7 +147,7 @@ export async function updateProfile(form: FormData): Promise<FormState> {
 export async function saveItem(kind: Kind, form: FormData): Promise<FormState> {
   if (!(await authorized())) return { unauthorized: true };
   assertKind(kind);
-  const parsed = parse(itemSchemas[kind], form);
+  const parsed = parse(kind, form);
   const id = Number(form.get("id"));
   const t = table(kind);
 
